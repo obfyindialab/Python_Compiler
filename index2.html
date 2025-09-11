@@ -16,6 +16,7 @@ body{
   align-items:center;
   min-height:100vh;
   color:#fff;
+  overflow: hidden; /* Hide scrollbar during welcome animation */
 }
 .container{
   background:rgba(255,255,255,0.15);
@@ -27,6 +28,15 @@ body{
   box-shadow:0 8px 25px rgba(0,0,0,0.25);
   backdrop-filter:blur(12px);
   border:1px solid rgba(255,255,255,0.3);
+  opacity: 0;
+  transform: translateY(20px);
+  animation: fadeIn 1s forwards;
+}
+@keyframes fadeIn {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 h2{
     margin-bottom:20px;
@@ -39,7 +49,6 @@ h2 img {
     height: 30px;
     margin-right: 10px;
     vertical-align: middle;
-    /* Glassmorphism style for the logo */
     backdrop-filter: blur(8px);
     background: rgba(255, 255, 255, 0.2);
     border: 1px solid rgba(255, 255, 255, 0.3);
@@ -106,7 +115,7 @@ button:hover{background:rgba(11,133,255,0.9);transform:scale(1.03);}
     margin-left: -10px;
 }
 button.loading .spinner { display: block; }
-button.loading span, button.loading i { visibility: hidden; } /* फिक्स: आइकन और टेक्स्ट दोनों को छिपाएं */
+button.loading span, button.loading i { visibility: hidden; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .output-loader {
@@ -148,25 +157,66 @@ button.loading span, button.loading i { visibility: hidden; } /* फिक्स
       blink-caret .75s step-end infinite;
 }
 
-/* The typing animation effect */
 @keyframes typing {
     from { width: 0 }
     to { width: 100% }
 }
 
-/* The typewriter cursor effect */
 @keyframes blink-caret {
     from, to { border-color: transparent }
     50% { border-color: #fff; }
 }
 
-/* Error text color */
 .error-text {
-  color: #ff6347; /* Red-orange color for errors */
+  color: #ff6347;
+}
+
+/* Welcome overlay styles */
+.welcome-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: #0B85FF;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  transition: opacity 1s ease-out;
+}
+.welcome-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+.welcome-logo {
+  height: 80px;
+  animation: scaleUp 1s ease-out;
+}
+.welcome-text {
+  font-size: 2.5em;
+  font-weight: 600;
+  margin-top: 20px;
+  opacity: 0;
+  animation: fadeInText 1s ease-in 0.5s forwards;
+}
+@keyframes scaleUp {
+  from { transform: scale(0.5); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+@keyframes fadeInText {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 </style>
 </head>
 <body>
+
+<div class="welcome-overlay" id="welcome-overlay">
+  <img src="https://www.python.org/static/favicon.ico" alt="Python Logo" class="welcome-logo">
+  <div class="welcome-text">Welcome to Python</div>
+</div>
 
 <div class="container">
   <h2><img src="https://www.python.org/static/favicon.ico" alt="Python Logo">Python Compiler</h2>
@@ -198,14 +248,22 @@ const outputBox = document.getElementById("output-box");
 const outputLoader = document.getElementById("output-loader");
 const outputText = document.getElementById("output-text");
 const typingSound = document.getElementById("typing-sound");
-const pythonLogo = `>>> `; // A simple and recognizable text logo
+const welcomeOverlay = document.getElementById("welcome-overlay");
+const pythonLogo = `>>> `;
+
+// Show welcome overlay for a few seconds on first load
+window.addEventListener('load', () => {
+    setTimeout(() => {
+        welcomeOverlay.classList.add('hidden');
+        document.body.style.overflow = 'auto'; // Re-enable scrolling
+    }, 2000);
+});
 
 function setButtonLoading(button, isLoading){
     button.classList.toggle('loading', isLoading);
     button.disabled = isLoading;
 }
 
-// Function to handle the typing effect
 function typeText(element, text, speed = 30) {
     let i = 0;
     element.innerHTML = "";
@@ -219,7 +277,6 @@ function typeText(element, text, speed = 30) {
                 typingSound.currentTime = 0;
                 typingSound.play();
             }
-
             element.innerHTML += text.charAt(i);
             i++;
         } else {
@@ -236,8 +293,8 @@ runBtn.addEventListener('click', async () => {
         return; 
     }
 
-    setButtonLoading(runBtn,true);
-    outputText.innerText="";
+    setButtonLoading(runBtn, true);
+    outputText.innerText = "";
     outputText.classList.remove('error-text');
     outputLoader.classList.add("active");
 
@@ -261,7 +318,6 @@ runBtn.addEventListener('click', async () => {
             outputText.classList.add('error-text');
         }
         
-        // Add the logo to the beginning of the output
         const finalOutput = pythonLogo + output;
         
         typeText(outputText, finalOutput);
@@ -271,7 +327,7 @@ runBtn.addEventListener('click', async () => {
         outputText.classList.add('error-text');
         typeText(outputText, pythonLogo + errorOutput);
     } finally {
-        setButtonLoading(runBtn,false);
+        setButtonLoading(runBtn, false);
         outputLoader.classList.remove("active");
     }
 });
