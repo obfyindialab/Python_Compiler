@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PYTHON COMPILER</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0c1c3c;
+            background-image: linear-gradient(135deg, #0c1c3c 0%, #1c3d70 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            color: white;
+            padding: 1rem;
+            overflow: hidden;
+        }
+
+        .loading-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #0c1c3c;
+            background-image: linear-gradient(135deg, #0c1c3c 0%, #1c3d70 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 1s ease-in-out;
+            gap: 1.5rem;
+        }
+
+        .loading-logo {
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+        }
+
+        .loading-screen.fade-out {
+            opacity: 0;
+            visibility: hidden;
+        }
+
+        .glass-container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+            padding: 1.5rem;
+            width: 100%;
+            max-width: 600px;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 1s ease-in-out 1s, transform 1s ease-in-out 1s;
+        }
+
+        .glass-container.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            color: rgba(255, 255, 255, 0.6);
+            cursor: pointer;
+            font-weight: 500;
+            transition: color 0.3s ease, transform 0.2s ease;
+        }
+
+        .tab-btn.active {
+            color: white;
+            border-bottom: 2px solid #4ade80;
+        }
+
+        .tab-btn:hover {
+            color: white;
+            transform: scale(1.05);
+        }
+
+        .tab-content {
+            display: none;
+            flex-grow: 1;
+        }
+
+        .tab-content.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        #editor {
+            background-color: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 1rem;
+            min-height: 250px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            outline: none;
+            transition: box-shadow 0.3s ease;
+            resize: vertical;
+        }
+
+        #editor:focus {
+            box-shadow: 0 0 0 2px #4ade80;
+        }
+
+        #console-container {
+            background-color: rgba(0, 0, 0, 0.8);
+            border-radius: 10px;
+            padding: 1rem;
+            min-height: 250px;
+            overflow-y: auto;
+            font-family: 'Roboto Mono', monospace;
+            color: #00ff00;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .console-line {
+            opacity: 0;
+            animation: fadeIn 0.5s ease-in-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .cursor {
+            font-weight: bold;
+            animation: blink-caret .75s step-end infinite;
+        }
+
+        @keyframes blink-caret {
+            from, to {
+                color: transparent;
+            }
+            50% {
+                color: #00ff00;
+            }
+        }
+
+        .btn {
+            background-image: linear-gradient(135deg, #4ade80 0%, #16a34a 100%);
+            color: #0c1c3c;
+            font-weight: 700;
+            padding: 0.75rem 1.5rem;
+            border-radius: 10px;
+            transition: transform 0.2s ease, box-shadow 0.3s ease;
+            box-shadow: 0 4px 15px rgba(22, 163, 74, 0.4);
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(22, 163, 74, 0.6);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+            box-shadow: 0 4-px 15px rgba(22, 163, 74, 0.4);
+        }
+
+        .header-with-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .python-logo {
+            height: 2.5rem;
+            width: auto;
+        }
+
+        .app-logo {
+            font-family: 'Roboto Mono', monospace;
+            font-weight: 700;
+            color: #4ade80;
+            text-shadow: 0 0 5px #4ade80, 0 0 10px #4ade80;
+            font-size: 2.25rem;
+            /* Equivalent to text-4xl */
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loading-screen" class="loading-screen">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/c/c3/Python-logo-notext.svg" alt="Python Logo" class="loading-logo h-24 w-auto" />
+        <h1 class="text-3xl font-bold text-center">Welcome to Python Compiler</h1>
+    </div>
+
+    <div id="main-content" class="glass-container">
+        <div class="header-with-logo">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/c/c3/Python-logo-notext.svg" alt="Python Logo" class="python-logo" />
+            <h1 class="text-3xl font-bold text-center">Python Compiler</h1>
+        </div>
+        <div class="tabs">
+            <button class="tab-btn active" onclick="showTab('code')">Code</button>
+            <button class="tab-btn" onclick="showTab('console')">Console</button>
+            <button class="tab-btn" onclick="showTab('about')">About</button>
+        </div>
+
+        <div id="code-tab" class="tab-content active">
+            <div id="editor" contenteditable="true" spellcheck="false" class="bg-gray-800 rounded-lg p-4 min-h-[250px] overflow-auto focus:outline-none focus:ring-2 focus:ring-green-400 transition-all duration-300">
+# Write your code here
+print("Hello, World!")
+            </div>
+        </div>
+
+        <div id="console-tab" class="tab-content">
+            <div id="console-container" class="rounded-lg">
+                <p>&gt; Ready to compile<span class="cursor">_</span></p>
+            </div>
+        </div>
+
+        <div id="about-tab" class="tab-content">
+            <div class="rounded-lg p-4 text-center bg-transparent">
+                <h2 class="text-xl font-bold mb-2">About This App</h2>
+                <p class="text-sm text-gray-300">This is a web-based Python compiler designed for a seamless and responsive user experience. It features a modern **GlassMorphism** design and a **Futurestick Technology UI/UX** aesthetic. The application leverages the **Piston API** to execute Python code remotely, with the output displayed in an interactive, animated console. Its architecture is optimized for speed and reliability, making it an efficient tool for testing code snippets on the go.</p>
+            </div>
+        </div>
+
+        <div class="flex justify-center">
+            <button id="run-btn" class="btn w-full flex items-center justify-center">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                </svg>
+                Run
+            </button>
+        </div>
+    </div>
+    <audio id="typing-sound" preload="auto">
+        <source src="computer-access-granted.mp3" type="audio/wav">
+    </audio>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const loadingScreen = document.getElementById('loading-screen');
+            const mainContent = document.getElementById('main-content');
+            const editor = document.getElementById('editor');
+            const consoleContainer = document.getElementById('console-container');
+            const runBtn = document.getElementById('run-btn');
+            const typingSound = document.getElementById('typing-sound');
+            
+            // Set the sound volume to a low level
+            typingSound.volume = 1.0;
+
+            // For sound to work on mobile, play a silent sound on user interaction
+            document.body.addEventListener('touchstart', () => {
+                if(typingSound.paused) {
+                    typingSound.play().catch(e => console.log('Autoplay blocked. Sound disabled.'));
+                }
+            }, { once: true });
+
+            setTimeout(() => {
+                loadingScreen.classList.add('fade-out');
+                mainContent.classList.add('visible');
+            }, 2000); 
+
+            function showTab(tabId) {
+                document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+                document.getElementById(`${tabId}-tab`).classList.add('active');
+                document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+                document.querySelector(`[onclick="showTab('${tabId}')"]`).classList.add('active');
+            }
+
+            window.showTab = showTab;
+
+            function playKeySound() {
+                typingSound.currentTime = 0;
+                typingSound.play().catch(() => {});
+            }
+
+            function logToConsole(message, baseDelay = 20) {
+                const lines = message.split('\n');
+                let lineIndex = 0;
+                let charIndex = 0;
+                const p = document.createElement('p');
+                p.classList.add('text-sm');
+                consoleContainer.appendChild(p);
+
+                function typeChar() {
+                    if (lineIndex < lines.length) {
+                        const currentLine = lines[lineIndex];
+                        if (charIndex < currentLine.length) {
+                            const char = currentLine.charAt(charIndex);
+                            p.textContent += char;
+                            charIndex++;
+                            // Play sound for every few characters to make it more realistic
+                            if (char.trim() !== '' && charIndex % 2 === 0) {
+                                playKeySound();
+                            }
+                            // Add a slight random delay for a more human feel
+                            const delay = baseDelay + Math.random() * 15;
+                            setTimeout(typeChar, delay);
+                        } else {
+                            // End of line, move to next
+                            lineIndex++;
+                            charIndex = 0;
+                            const newP = document.createElement('p');
+                            newP.classList.add('text-sm');
+                            consoleContainer.appendChild(newP);
+                            consoleContainer.scrollTop = consoleContainer.scrollHeight;
+                            setTimeout(typeChar, baseDelay);
+                        }
+                    } else {
+                        // All lines are typed
+                        const cursor = document.createElement('span');
+                        cursor.classList.add('cursor');
+                        cursor.textContent = '_';
+                        p.appendChild(cursor);
+                    }
+                }
+                typeChar();
+            }
+
+            runBtn.addEventListener('click', async () => {
+                const code = editor.innerText;
+                const url = `https://emkc.org/api/v2/piston/execute`;
+
+                consoleContainer.innerHTML = '';
+                logToConsole("> Compiling code...");
+                showTab('console');
+
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            language: "python",
+                            version: "3.10.0",
+                            files: [{
+                                content: code
+                            }]
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        consoleContainer.innerHTML = '';
+                        logToConsole("--- API Error ---");
+                        logToConsole(`Server responded with status: ${response.status}`);
+                        return;
+                    }
+
+                    const result = await response.json();
+                    consoleContainer.innerHTML = '';
+
+                    if (result.run && result.run.stderr) {
+                        logToConsole("--- Execution Error ---");
+                        logToConsole(result.run.stderr);
+                    } else if (result.run && result.run.stdout) {
+                        if (result.run.stdout.trim() === '') {
+                            logToConsole("--- Output ---");
+                            logToConsole("Execution successful. No output.");
+                        } else {
+                            logToConsole("--- Output ---");
+                            logToConsole(result.run.stdout);
+                        }
+                    } else if (result.message) {
+                        logToConsole("--- API Error ---");
+                        logToConsole(result.message);
+                    } else {
+                        logToConsole("--- Unknown Error ---");
+                        logToConsole("An unknown error occurred. Please check the console for more details.");
+                        console.error('API response:', result);
+                    }
+
+                } catch (error) {
+                    consoleContainer.innerHTML = '';
+                    logToConsole("--- Network Error ---");
+                    logToConsole("Failed to connect to the compiler. Please check your network connection.");
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
