@@ -14,13 +14,11 @@
             font-family: 'Inter', sans-serif;
             background-color: #0c1c3c;
             background-image: linear-gradient(135deg, #0c1c3c 0%, #1c3d70 100%);
+            background-attachment: fixed;
             display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
+            min-height: 100vh;
             color: white;
             padding: 1rem;
-            overflow: hidden;
         }
 
         .loading-screen {
@@ -67,6 +65,7 @@
             padding: 1.5rem;
             width: 100%;
             max-width: 600px;
+            margin: auto;
             display: flex;
             flex-direction: column;
             gap: 1rem;
@@ -117,20 +116,36 @@
             flex-direction: column;
         }
 
-        #editor {
+        /* Code editor + stdin box (plain textareas: reliable text, tabs, paste) */
+        #editor,
+        #stdin {
+            display: block;
+            width: 100%;
             background-color: rgba(0, 0, 0, 0.3);
+            color: #f1f5f9;
+            border: none;
             border-radius: 10px;
             padding: 1rem;
             min-height: 250px;
-            white-space: pre-wrap;
-            word-wrap: break-word;
+            font-family: 'Roboto Mono', monospace;
+            font-size: 0.875rem;
+            line-height: 1.5;
+            tab-size: 4;
+            white-space: pre;
+            overflow: auto;
             outline: none;
-            transition: box-shadow 0.3s ease;
             resize: vertical;
+            transition: box-shadow 0.3s ease;
         }
 
-        #editor:focus {
+        #editor:focus,
+        #stdin:focus {
             box-shadow: 0 0 0 2px #4ade80;
+        }
+
+        #stdin::placeholder {
+            color: rgba(255, 255, 255, 0.4);
+            white-space: pre-wrap;
         }
 
         #console-container {
@@ -138,25 +153,29 @@
             border-radius: 10px;
             padding: 1rem;
             min-height: 250px;
+            max-height: 60vh;
             overflow-y: auto;
             font-family: 'Roboto Mono', monospace;
+            font-size: 0.875rem;
             color: #00ff00;
-            display: flex;
-            flex-direction: column;
+            white-space: pre-wrap;
+            word-break: break-word;
         }
 
-        .console-line {
-            opacity: 0;
-            animation: fadeIn 0.5s ease-in-out forwards;
+        .out-out {
+            color: #00ff00;
         }
 
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-            to {
-                opacity: 1;
-            }
+        .out-err {
+            color: #ff6b6b;
+        }
+
+        .out-in {
+            color: #7dd3fc;
+        }
+
+        .out-meta {
+            color: rgba(255, 255, 255, 0.55);
         }
 
         .cursor {
@@ -179,18 +198,29 @@
             font-weight: 700;
             padding: 0.75rem 1.5rem;
             border-radius: 10px;
-            transition: transform 0.2s ease, box-shadow 0.3s ease;
+            transition: transform 0.2s ease, box-shadow 0.3s ease, opacity 0.3s ease;
             box-shadow: 0 4px 15px rgba(22, 163, 74, 0.4);
         }
 
-        .btn:hover {
+        .btn:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(22, 163, 74, 0.6);
         }
 
-        .btn:active {
+        .btn:active:not(:disabled) {
             transform: translateY(0);
-            box-shadow: 0 4-px 15px rgba(22, 163, 74, 0.4);
+            box-shadow: 0 4px 15px rgba(22, 163, 74, 0.4);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn.stop {
+            background-image: linear-gradient(135deg, #f87171 0%, #dc2626 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(220, 38, 38, 0.4);
         }
 
         .header-with-logo {
@@ -227,60 +257,265 @@
             <img src="https://upload.wikimedia.org/wikipedia/commons/c/c3/Python-logo-notext.svg" alt="Python Logo" class="python-logo" />
             <h1 class="text-3xl font-bold text-center">Python Compiler</h1>
         </div>
+        <p id="runtime-info" class="text-xs text-center text-gray-300 -mt-2">Loading Python runtime...</p>
         <div class="tabs">
             <button class="tab-btn active" onclick="showTab('code')">Code</button>
+            <button class="tab-btn" onclick="showTab('input')">Input</button>
             <button class="tab-btn" onclick="showTab('console')">Console</button>
             <button class="tab-btn" onclick="showTab('about')">About</button>
         </div>
 
         <div id="code-tab" class="tab-content active">
-            <div id="editor" contenteditable="true" spellcheck="false" class="bg-gray-800 rounded-lg p-4 min-h-[250px] overflow-auto focus:outline-none focus:ring-2 focus:ring-green-400 transition-all duration-300">
-# Write your code here
-print("Hello, World!")
-            </div>
+            <textarea id="editor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-label="Python code"># Write your code here
+print("Hello, World!")</textarea>
+        </div>
+
+        <div id="input-tab" class="tab-content">
+            <textarea id="stdin" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-label="Program input" placeholder="Program input (stdin).&#10;One value per line - each input() call reads the next line."></textarea>
         </div>
 
         <div id="console-tab" class="tab-content">
-            <div id="console-container" class="rounded-lg">
-                <p>&gt; Ready to compile<span class="cursor">_</span></p>
-            </div>
+            <div id="console-container" class="rounded-lg" aria-live="polite"></div>
         </div>
 
         <div id="about-tab" class="tab-content">
             <div class="rounded-lg p-4 text-center bg-transparent">
                 <h2 class="text-xl font-bold mb-2">About This App</h2>
-                <p class="text-sm text-gray-300">This is a web-based Python compiler designed for a seamless and responsive user experience. It features a modern **GlassMorphism** design and a **Futurestick Technology UI/UX** aesthetic. The application leverages the **Piston API** to execute Python code remotely, with the output displayed in an interactive, animated console. Its architecture is optimized for speed and reliability, making it an efficient tool for testing code snippets on the go.</p>
+                <p class="text-sm text-gray-300">This is a web-based Python compiler designed for a seamless and responsive user experience. It features a modern <strong>GlassMorphism</strong> design and a <strong>Futurestick Technology UI/UX</strong> aesthetic. Python runs directly in your browser through <strong>Pyodide</strong> (WebAssembly), so there is no server, API key or rate limit. It supports <code>input()</code> (use the Input tab), live stdout and stderr, exit codes, tracebacks, async code, and libraries such as numpy, pandas and matplotlib, which load on demand. Pure-Python packages are installed from PyPI automatically. Tip: press Ctrl/Cmd + Enter to run.</p>
             </div>
         </div>
 
         <div class="flex justify-center">
-            <button id="run-btn" class="btn w-full flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+            <button id="run-btn" class="btn w-full flex items-center justify-center" disabled>
+                <svg id="icon-play" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
                 </svg>
-                Run
+                <svg id="icon-stop" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 hidden" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" />
+                </svg>
+                <span id="run-label">Loading Python...</span>
             </button>
         </div>
     </div>
     <audio id="typing-sound" preload="auto">
-        <source src="computer-access-granted.mp3" type="audio/wav">
+        <source src="computer-access-granted.mp3" type="audio/mpeg">
     </audio>
+
+    <!-- Python side of the runner: executes user code, reports exit code, handles async + missing packages -->
+    <script type="text/x-python" id="py-harness">
+import ast, builtins, inspect, linecache, sys, traceback
+
+
+class _AsyncRunRewriter(ast.NodeTransformer):
+    """Turn module-level asyncio.run(x) / loop.run_until_complete(x) into `await x`
+    (Pyodide's event loop is already running, so those calls cannot block)."""
+
+    def visit_FunctionDef(self, node):
+        return node
+
+    visit_AsyncFunctionDef = visit_FunctionDef
+    visit_ClassDef = visit_FunctionDef
+    visit_Lambda = visit_FunctionDef
+
+    def visit_Call(self, node):
+        self.generic_visit(node)
+        f = node.func
+        if (isinstance(f, ast.Attribute) and node.args
+                and not isinstance(node.args[0], ast.Starred)):
+            is_run = (f.attr == 'run' and isinstance(f.value, ast.Name)
+                      and f.value.id == 'asyncio')
+            if is_run or f.attr == 'run_until_complete':
+                return ast.copy_location(ast.Await(value=node.args[0]), node)
+        return node
+
+
+def __pyc_missing(src):
+    """Top-level imported modules that are not available yet."""
+    from pyodide.code import find_imports
+    import importlib.util
+    missing = []
+    for name in find_imports(src):
+        if name in sys.modules:
+            continue
+        try:
+            if importlib.util.find_spec(name) is None:
+                missing.append(name)
+        except Exception:
+            missing.append(name)
+    return missing
+
+
+async def __pyc_run(src):
+    code = 0
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(line_buffering=True)
+        except Exception:
+            pass
+    try:
+        linecache.cache['<main>'] = (len(src), None, src.splitlines(True), '<main>')
+        tree = ast.parse(src, '<main>', 'exec')
+        tree = ast.fix_missing_locations(_AsyncRunRewriter().visit(tree))
+        compiled = compile(tree, '<main>', 'exec', flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
+        scope = {'__name__': '__main__', '__file__': 'main.py', '__builtins__': builtins}
+        result = eval(compiled, scope)
+        if inspect.isawaitable(result):
+            await result
+    except SystemExit as e:
+        c = e.code
+        if c is None:
+            code = 0
+        elif isinstance(c, int):
+            code = c
+        else:
+            print(c, file=sys.stderr)
+            code = 1
+    except BaseException:
+        etype, evalue, tb = sys.exc_info()
+        while tb is not None and tb.tb_frame.f_code.co_filename != '<main>':
+            tb = tb.tb_next
+        traceback.print_exception(etype, evalue, tb)
+        code = 1
+    finally:
+        try:
+            sys.stdout.flush()
+            sys.stderr.flush()
+        except Exception:
+            pass
+    return code
+    </script>
+
+    <!-- Web Worker: loads Pyodide off the main thread so Stop / timeouts always work -->
+    <script type="text/plain" id="worker-src">
+const PYODIDE_URL = 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/';
+const MAX_CHARS = 300000;
+
+let pyodide = null;
+let current = null;      // 'out' | 'err' : stream the pending bytes belong to
+let pending = [];
+let sent = 0;
+let overflowed = false;
+let stdinLines = [];
+const decoders = { out: new TextDecoder(), err: new TextDecoder() };
+const encoder = new TextEncoder();
+
+function flush() {
+    if (!pending.length || !current) { pending = []; return; }
+    const text = decoders[current].decode(new Uint8Array(pending), { stream: true });
+    pending = [];
+    if (!text || overflowed) return;
+    sent += text.length;
+    if (sent > MAX_CHARS) {
+        overflowed = true;
+        postMessage({ type: 'overflow' });
+        return;
+    }
+    postMessage({ type: 'chunk', stream: current, text: text });
+}
+
+function writeByte(stream, b) {
+    if (current !== stream) { flush(); current = stream; }
+    pending.push(b & 255);
+    if (b === 10 || pending.length >= 4096) flush();
+}
+
+function readStdin() {
+    flush(); // make sure a pending input() prompt is shown before the echoed answer
+    if (!stdinLines.length) return undefined; // EOF -> input() raises EOFError like a real pipe
+    const line = stdinLines.shift() + '\n';
+    postMessage({ type: 'chunk', stream: 'in', text: line }); // echo, like a terminal
+    return encoder.encode(line);
+}
+
+function splitLines(text) {
+    if (!text) return [];
+    const lines = text.replace(/\r\n?/g, '\n').split('\n');
+    if (lines.length && lines[lines.length - 1] === '') lines.pop();
+    return lines;
+}
+
+async function init(harness) {
+    postMessage({ type: 'status', text: 'Loading Python runtime...' });
+    importScripts(PYODIDE_URL + 'pyodide.js');
+    pyodide = await loadPyodide({ indexURL: PYODIDE_URL });
+    pyodide.setStdout({ raw: function (b) { writeByte('out', b); } });
+    pyodide.setStderr({ raw: function (b) { writeByte('err', b); } });
+    pyodide.setStdin({ stdin: readStdin });
+    await pyodide.runPythonAsync(harness);
+    const python = pyodide.runPython('import sys\nsys.version.split()[0]');
+    postMessage({ type: 'ready', python: python });
+}
+
+async function prepare(code) {
+    const report = function (m) { postMessage({ type: 'status', text: m }); };
+    // Packages bundled with Pyodide (numpy, pandas, matplotlib, scipy, ...)
+    await pyodide.loadPackagesFromImports(code, { messageCallback: report, errorCallback: report });
+    // Anything still missing: try pure-Python wheels from PyPI
+    const missing = pyodide.globals.get('__pyc_missing')(code).toJs();
+    if (missing.length) {
+        report('Installing ' + missing.join(', ') + ' from PyPI...');
+        await pyodide.loadPackage('micropip');
+        const micropip = pyodide.pyimport('micropip');
+        for (const name of missing) {
+            try { await micropip.install(name); }
+            catch (e) { report('Could not install "' + name + '" (not on PyPI or not pure-Python).'); }
+        }
+    }
+}
+
+self.onmessage = async function (e) {
+    const m = e.data;
+    if (m.type === 'init') {
+        try { await init(m.harness); }
+        catch (err) { postMessage({ type: 'initError', message: String((err && err.message) || err) }); }
+        return;
+    }
+    if (m.type === 'run') {
+        stdinLines = splitLines(m.stdin);
+        sent = 0; overflowed = false; current = null; pending = [];
+        decoders.out = new TextDecoder(); decoders.err = new TextDecoder();
+        const t0 = performance.now();
+        let code = 1;
+        try {
+            try { await prepare(m.code); }
+            catch (err) { postMessage({ type: 'status', text: 'Package setup problem: ' + String((err && err.message) || err) }); }
+            postMessage({ type: 'started' });
+            pyodide.globals.set('__pyc_src', m.code);
+            code = await pyodide.runPythonAsync('await __pyc_run(__pyc_src)');
+        } catch (err) {
+            flush();
+            current = 'err';
+            postMessage({ type: 'chunk', stream: 'err', text: String((err && err.message) || err) + '\n' });
+        }
+        flush();
+        postMessage({ type: 'done', code: code, ms: Math.round(performance.now() - t0) });
+    }
+};
+    </script>
 
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             const loadingScreen = document.getElementById('loading-screen');
             const mainContent = document.getElementById('main-content');
             const editor = document.getElementById('editor');
+            const stdinBox = document.getElementById('stdin');
             const consoleContainer = document.getElementById('console-container');
             const runBtn = document.getElementById('run-btn');
+            const runLabel = document.getElementById('run-label');
+            const iconPlay = document.getElementById('icon-play');
+            const iconStop = document.getElementById('icon-stop');
+            const runInfo = document.getElementById('runtime-info');
             const typingSound = document.getElementById('typing-sound');
-            
-            // Set the sound volume to a low level
+
+            const RUN_LIMIT_MS = 30000;   // time allowed for the program itself
+            const PREP_LIMIT_MS = 180000; // time allowed for downloading packages
+
+            // Set the sound volume
             typingSound.volume = 1.0;
 
             // For sound to work on mobile, play a silent sound on user interaction
             document.body.addEventListener('touchstart', () => {
-                if(typingSound.paused) {
+                if (typingSound.paused) {
                     typingSound.play().catch(e => console.log('Autoplay blocked. Sound disabled.'));
                 }
             }, { once: true });
@@ -288,7 +523,7 @@ print("Hello, World!")
             setTimeout(() => {
                 loadingScreen.classList.add('fade-out');
                 mainContent.classList.add('visible');
-            }, 2000); 
+            }, 2000);
 
             function showTab(tabId) {
                 document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
@@ -304,109 +539,252 @@ print("Hello, World!")
                 typingSound.play().catch(() => {});
             }
 
-            function logToConsole(message, baseDelay = 20) {
-                const lines = message.split('\n');
-                let lineIndex = 0;
-                let charIndex = 0;
-                const p = document.createElement('p');
-                p.classList.add('text-sm');
-                consoleContainer.appendChild(p);
+            /* ---------- Console with typewriter effect ---------- */
+            const cursorEl = document.createElement('span');
+            cursorEl.className = 'cursor';
+            cursorEl.textContent = '_';
+            consoleContainer.appendChild(cursorEl);
 
-                function typeChar() {
-                    if (lineIndex < lines.length) {
-                        const currentLine = lines[lineIndex];
-                        if (charIndex < currentLine.length) {
-                            const char = currentLine.charAt(charIndex);
-                            p.textContent += char;
-                            charIndex++;
-                            // Play sound for every few characters to make it more realistic
-                            if (char.trim() !== '' && charIndex % 2 === 0) {
-                                playKeySound();
-                            }
-                            // Add a slight random delay for a more human feel
-                            const delay = baseDelay + Math.random() * 15;
-                            setTimeout(typeChar, delay);
-                        } else {
-                            // End of line, move to next
-                            lineIndex++;
-                            charIndex = 0;
-                            const newP = document.createElement('p');
-                            newP.classList.add('text-sm');
-                            consoleContainer.appendChild(newP);
-                            consoleContainer.scrollTop = consoleContainer.scrollHeight;
-                            setTimeout(typeChar, baseDelay);
-                        }
-                    } else {
-                        // All lines are typed
-                        const cursor = document.createElement('span');
-                        cursor.classList.add('cursor');
-                        cursor.textContent = '_';
-                        p.appendChild(cursor);
-                    }
+            let queue = [];
+            let backlog = 0;
+            let pumping = false;
+            let typedCount = 0;
+            let lastSpan = null;
+            let lastStream = null;
+
+            function appendText(stream, text) {
+                if (!lastSpan || lastStream !== stream) {
+                    lastSpan = document.createElement('span');
+                    lastSpan.className = 'out-' + stream;
+                    consoleContainer.insertBefore(lastSpan, cursorEl);
+                    lastStream = stream;
                 }
-                typeChar();
+                lastSpan.textContent += text;
+                consoleContainer.scrollTop = consoleContainer.scrollHeight;
             }
 
-            runBtn.addEventListener('click', async () => {
-                const code = editor.innerText;
-                const url = `https://emkc.org/api/v2/piston/execute`;
+            function pump() {
+                pumping = true;
+                const step = () => {
+                    const item = queue[0];
+                    if (!item) { pumping = false; return; }
+                    // Type slowly for short output, dump instantly when a lot is waiting
+                    const fast = backlog > 300;
+                    const n = fast ? item.text.length : 1;
+                    const piece = item.text.slice(0, n);
+                    item.text = item.text.slice(n);
+                    backlog -= n;
+                    if (!item.text) queue.shift();
+                    appendText(item.stream, piece);
+                    if (!fast && piece.trim() !== '' && (++typedCount % 2 === 0)) playKeySound();
+                    setTimeout(step, fast ? 0 : 10 + Math.random() * 10);
+                };
+                step();
+            }
 
-                consoleContainer.innerHTML = '';
-                logToConsole("> Compiling code...");
+            function enqueue(stream, text) {
+                if (!text) return;
+                queue.push({ stream, text });
+                backlog += text.length;
+                if (!pumping) pump();
+            }
+
+            function clearConsole() {
+                queue = [];
+                backlog = 0;
+                lastSpan = null;
+                lastStream = null;
+                consoleContainer.textContent = '';
+                consoleContainer.appendChild(cursorEl);
+            }
+
+            /* ---------- Python runtime (Web Worker running Pyodide) ---------- */
+            const workerSrc = document.getElementById('worker-src').textContent;
+            const harness = document.getElementById('py-harness').textContent;
+            const workerUrl = URL.createObjectURL(new Blob([workerSrc], { type: 'text/javascript' }));
+
+            let worker = null;
+            let btnState = 'loading';
+            let running = false;
+            let gotOutput = false;
+            let sawEOF = false;
+            let runTimer = null;
+
+            function setBtn(state) {
+                btnState = state;
+                runBtn.disabled = state === 'loading';
+                runBtn.classList.toggle('stop', state === 'running');
+                iconPlay.classList.toggle('hidden', state === 'running');
+                iconStop.classList.toggle('hidden', state !== 'running');
+                runLabel.textContent = {
+                    loading: 'Loading Python...',
+                    ready: 'Run',
+                    running: 'Stop',
+                    failed: 'Retry loading'
+                }[state];
+            }
+
+            function armTimer(ms) {
+                clearTimeout(runTimer);
+                runTimer = setTimeout(() => {
+                    killAndRestart(`--- Timed out after ${RUN_LIMIT_MS / 1000}s: program stopped ---`);
+                }, ms);
+            }
+
+            function startWorker() {
+                if (worker) worker.terminate();
+                setBtn('loading');
+                runInfo.textContent = 'Loading Python runtime...';
+                worker = new Worker(workerUrl);
+                worker.onmessage = onWorkerMessage;
+                worker.onerror = (e) => {
+                    if (running) {
+                        killAndRestart('--- The Python runtime crashed ---');
+                    } else {
+                        initFailed(e && e.message ? e.message : 'worker error');
+                    }
+                };
+                worker.postMessage({ type: 'init', harness });
+            }
+
+            function killAndRestart(reason) {
+                clearTimeout(runTimer);
+                running = false;
+                enqueue('err', `\n${reason}\n`);
+                startWorker();
+            }
+
+            function initFailed(message) {
+                setBtn('failed');
+                runInfo.textContent = 'Python runtime failed to load';
+                enqueue('err', `--- Could not load Python runtime ---\n${message}\nCheck your internet connection, then press "Retry loading".\n`);
+            }
+
+            function onWorkerMessage(e) {
+                const m = e.data;
+                switch (m.type) {
+                    case 'status':
+                        if (running) enqueue('meta', `> ${m.text}\n`);
+                        else runInfo.textContent = m.text;
+                        break;
+                    case 'ready':
+                        setBtn('ready');
+                        runInfo.textContent = `Python ${m.python} \u00b7 runs in your browser`;
+                        enqueue('meta', `> Python ${m.python} ready. Press Run (or Ctrl/Cmd + Enter).\n`);
+                        break;
+                    case 'initError':
+                        initFailed(m.message);
+                        break;
+                    case 'started':
+                        armTimer(RUN_LIMIT_MS);
+                        break;
+                    case 'chunk':
+                        gotOutput = true;
+                        if (m.stream === 'err' && m.text.includes('EOFError')) sawEOF = true;
+                        enqueue(m.stream, m.text);
+                        break;
+                    case 'overflow':
+                        killAndRestart('--- Output limit reached: program stopped ---');
+                        break;
+                    case 'done':
+                        clearTimeout(runTimer);
+                        running = false;
+                        if (!gotOutput) enqueue('meta', 'Execution successful. No output.\n');
+                        if (sawEOF && !stdinBox.value.trim()) {
+                            enqueue('meta', '\nTip: this program reads input. Add the values in the Input tab, one line per input() call.\n');
+                        }
+                        enqueue('meta', `\n--- Process finished with exit code ${m.code} (${(m.ms / 1000).toFixed(2)}s) ---\n`);
+                        setBtn('ready');
+                        break;
+                }
+            }
+
+            runBtn.addEventListener('click', () => {
+                if (btnState === 'failed') {
+                    clearConsole();
+                    enqueue('meta', '> Retrying...\n');
+                    startWorker();
+                    return;
+                }
+                if (btnState === 'running') {
+                    killAndRestart('--- Execution stopped ---');
+                    return;
+                }
+                if (btnState !== 'ready') return;
+
+                clearConsole();
                 showTab('console');
+                gotOutput = false;
+                sawEOF = false;
+                running = true;
+                enqueue('meta', '> Running...\n');
+                setBtn('running');
+                armTimer(PREP_LIMIT_MS);
+                worker.postMessage({ type: 'run', code: editor.value, stdin: stdinBox.value });
+            });
 
-                try {
-                    const response = await fetch(url, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            language: "python",
-                            version: "3.10.0",
-                            files: [{
-                                content: code
-                            }]
-                        })
-                    });
+            /* ---------- Editor niceties: Tab, Shift+Tab, auto-indent, Ctrl/Cmd+Enter ---------- */
+            function replaceRange(from, to, text) {
+                editor.setSelectionRange(from, to);
+                // execCommand keeps the browser's undo history working
+                if (!document.execCommand('insertText', false, text)) {
+                    editor.setRangeText(text, from, to, 'end');
+                }
+            }
 
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        consoleContainer.innerHTML = '';
-                        logToConsole("--- API Error ---");
-                        logToConsole(`Server responded with status: ${response.status}`);
+            editor.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    runBtn.click();
+                    return;
+                }
+                if (e.isComposing) return;
+                const v = editor.value;
+                const start = editor.selectionStart;
+                const end = editor.selectionEnd;
+
+                if (e.key === 'Tab') {
+                    e.preventDefault();
+                    if (start === end && !e.shiftKey) {
+                        replaceRange(start, end, '    ');
                         return;
                     }
+                    // Indent / dedent every selected line
+                    const effEnd = (end > start && v[end - 1] === '\n') ? end - 1 : end;
+                    const lineStart = v.lastIndexOf('\n', start - 1) + 1;
+                    const nl = v.indexOf('\n', effEnd);
+                    const lineEnd = nl === -1 ? v.length : nl;
+                    const lines = v.slice(lineStart, lineEnd).split('\n');
+                    const out = lines.map(l => e.shiftKey ? l.replace(/^( {1,4}|\t)/, '') : '    ' + l);
+                    const block = out.join('\n');
+                    const delta = block.length - (lineEnd - lineStart);
+                    const firstDelta = out[0].length - lines[0].length;
+                    replaceRange(lineStart, lineEnd, block);
+                    editor.setSelectionRange(Math.max(lineStart, start + firstDelta), Math.max(lineStart, end + delta));
+                    return;
+                }
 
-                    const result = await response.json();
-                    consoleContainer.innerHTML = '';
-
-                    if (result.run && result.run.stderr) {
-                        logToConsole("--- Execution Error ---");
-                        logToConsole(result.run.stderr);
-                    } else if (result.run && result.run.stdout) {
-                        if (result.run.stdout.trim() === '') {
-                            logToConsole("--- Output ---");
-                            logToConsole("Execution successful. No output.");
-                        } else {
-                            logToConsole("--- Output ---");
-                            logToConsole(result.run.stdout);
-                        }
-                    } else if (result.message) {
-                        logToConsole("--- API Error ---");
-                        logToConsole(result.message);
-                    } else {
-                        logToConsole("--- Unknown Error ---");
-                        logToConsole("An unknown error occurred. Please check the console for more details.");
-                        console.error('API response:', result);
+                if (e.key === 'Enter' && !e.shiftKey && !e.altKey) {
+                    const lineStart = v.lastIndexOf('\n', start - 1) + 1;
+                    const before = v.slice(lineStart, start);
+                    const indent = before.match(/^[ \t]*/)[0];
+                    const extra = /:\s*(#.*)?$/.test(before) ? '    ' : '';
+                    if (indent || extra) {
+                        e.preventDefault();
+                        replaceRange(start, end, '\n' + indent + extra);
                     }
-
-                } catch (error) {
-                    consoleContainer.innerHTML = '';
-                    logToConsole("--- Network Error ---");
-                    logToConsole("Failed to connect to the compiler. Please check your network connection.");
                 }
             });
+
+            stdinBox.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    runBtn.click();
+                }
+            });
+
+            enqueue('meta', '> Loading Python runtime...\n');
+            startWorker();
         });
     </script>
 </body>
