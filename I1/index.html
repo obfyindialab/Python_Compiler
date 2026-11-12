@@ -1,0 +1,1663 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PYTHON COMPILER — Super Edition</title>
+    <link rel="icon" type="image/x-icon" href="https://s3.dualstack.us-east-2.amazonaws.com/pythondotorg-assets/media/community/logos/python-logo-only.png">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Anek+Latin:wght@500;600;700;800&family=Figtree:wght@400;500;600;700&family=Roboto+Mono:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            /* Colors — Primary */
+            --color-primary: #4d43fe;
+            --color-brand: #4d43fe;
+            --color-action: #4d43fe;
+
+            /* Ramp — primary (base is 600) */
+            --color-primary-50: #d7ecff;
+            --color-primary-100: #c9dfff;
+            --color-primary-200: #b5cbff;
+            --color-primary-300: #9aadff;
+            --color-primary-400: #7985ff;
+            --color-primary-500: #5f60ff;
+            --color-primary-600: #4d43fe;
+            --color-primary-700: #3d33d3;
+            --color-primary-800: #3124b4;
+            --color-primary-900: #271898;
+            --color-primary-950: #14055f;
+
+            /* Ramp — neutral (base is 950) */
+            --color-neutral-50: #f5f5f5;
+            --color-neutral-100: #eaeaea;
+            --color-neutral-200: #d9d9d9;
+            --color-neutral-300: #c0c0c0;
+            --color-neutral-400: #9f9f9f;
+            --color-neutral-500: #828282;
+            --color-neutral-600: #6c6c6c;
+            --color-neutral-700: #575757;
+            --color-neutral-800: #464646;
+            --color-neutral-900: #393939;
+            --color-neutral-950: #1b1b1b;
+
+            /* Colors — Neutrals */
+            --color-neutral-400-alt: #adacbe;
+            --color-neutral-500-alt: #eef4fe;
+
+            /* Colors — Backgrounds */
+            --color-bg: #ffffff;
+            --color-bg-1: #1b1b1b;
+            --color-bg-2: #4d43fe;
+            --color-bg-3: #e0eaff;
+
+            /* Colors — Text */
+            --color-text: #ffffff;
+            --color-text-1: #1b1b1b;
+            --color-text-2: #4d43fe;
+            --color-text-3: #adacbe;
+            --color-text-4: #eaecf0;
+
+            /* Semantic pairs */
+            --surface-page-bg: #ffffff;
+            --surface-page-fg: #1b1b1b;
+            --surface-raised-bg: #1b1b1b;
+            --surface-raised-fg: #ffffff;
+            --action-primary-bg: #4d43fe;
+            --action-primary-fg: #ffffff;
+
+            /* Typography — Families */
+            --font-sans: 'Anek Latin', 'AnekLatin', sans-serif;
+            --font-font-1: 'Figtree', sans-serif;
+            --font-mono: 'Roboto Mono', monospace;
+
+            /* Typography — Named scale */
+            --font-size-display: 240px;
+            --font-size-h1: 130px;
+            --font-size-title-1: 100px;
+            --font-size-title-2: 96px;
+            --font-size-h2: 72px;
+            --font-size-title-3: 67px;
+            --font-size-title-4: 32px;
+            --font-size-title-5: 28px;
+            --font-size-title-6: 24px;
+            --font-size-title-7: 22px;
+            --font-size-h3: 20px;
+            --font-size-title-8: 16px;
+            --font-size-body: 14px;
+
+            /* Layout */
+            --container-width: 1280px;
+            --container-gutter: 102px;
+            --section-rhythm: 150px;
+            --grid-columns: 2;
+
+            /* Spacing */
+            --spacing-4: 4px;
+            --spacing-12: 12px;
+            --spacing-16: 16px;
+            --spacing-20: 20px;
+            --spacing-24: 24px;
+            --spacing-32: 32px;
+            --spacing-36: 36px;
+            --spacing-40: 40px;
+            --spacing-48: 48px;
+            --spacing-128: 128px;
+            --spacing-320: 320px;
+
+            /* Border Radius */
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+            --radius-pill: 100px;
+            --radius-full: 9999px;
+
+            /* Box Shadows */
+            --shadow-xs: rgba(74, 58, 255, 0.1) 0px 6px 16px 0px;
+            --shadow-sm: rgba(41, 30, 255, 0.45) 0px 8px 28px 0px;
+
+            /* Original Site Variables */
+            --primary: #4d43fe;
+            --red: #ef4444;
+            --gray200: #eaecf0;
+            --superBlue50: #dbe1ff;
+
+            /* Theme-aware UI Variables (Dark Default) */
+            --app-bg: radial-gradient(circle at 15% 15%, rgba(77, 67, 254, 0.28) 0%, transparent 45%),
+                      radial-gradient(circle at 85% 85%, rgba(61, 51, 211, 0.22) 0%, transparent 50%),
+                      linear-gradient(145deg, #0d0735 0%, var(--color-primary-950) 45%, var(--surface-raised-bg) 100%);
+            --card-bg: rgba(27, 27, 27, 0.78);
+            --card-border: rgba(154, 173, 255, 0.16);
+            --panel-bg: rgba(12, 10, 29, 0.72);
+            --panel-border: rgba(121, 133, 255, 0.18);
+            --gutter-bg: rgba(20, 5, 95, 0.35);
+            --text-main: var(--color-text);
+            --text-muted: var(--color-text-3);
+            --tab-pill-bg: rgba(255, 255, 255, 0.05);
+            --toolbar-btn-bg: rgba(255, 255, 255, 0.06);
+            --toolbar-btn-hover: rgba(77, 67, 254, 0.25);
+        }
+
+        html[data-theme="light"] {
+            --app-bg: radial-gradient(circle at 10% 10%, var(--color-primary-50) 0%, transparent 45%),
+                      radial-gradient(circle at 90% 90%, var(--superBlue50) 0%, transparent 50%),
+                      linear-gradient(145deg, var(--surface-page-bg) 0%, var(--color-neutral-500-alt) 60%, var(--color-bg-3) 100%);
+            --card-bg: rgba(255, 255, 255, 0.88);
+            --card-border: rgba(77, 67, 254, 0.18);
+            --panel-bg: #141229;
+            --panel-border: rgba(77, 67, 254, 0.25);
+            --gutter-bg: rgba(20, 5, 95, 0.55);
+            --text-main: var(--surface-page-fg);
+            --text-muted: var(--color-neutral-600);
+            --tab-pill-bg: var(--superBlue50);
+            --toolbar-btn-bg: rgba(77, 67, 254, 0.08);
+            --toolbar-btn-hover: rgba(77, 67, 254, 0.18);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-font-1);
+            background: var(--app-bg);
+            background-attachment: fixed;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            color: var(--text-main);
+            padding: var(--spacing-16);
+            margin: 0;
+            overflow-x: hidden;
+            transition: background 0.4s ease, color 0.3s ease;
+        }
+
+        h1, h2, h3, .brand-heading {
+            font-family: var(--font-sans);
+            letter-spacing: -0.02em;
+        }
+
+        /* Ambient Floating Orbs */
+        .ambient-orb {
+            position: fixed;
+            border-radius: var(--radius-full);
+            filter: blur(90px);
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.45;
+            animation: floatOrb 14s ease-in-out infinite alternate;
+        }
+
+        .orb-1 {
+            width: 360px;
+            height: 360px;
+            background: var(--color-primary-600);
+            top: -80px;
+            left: -80px;
+        }
+
+        .orb-2 {
+            width: 300px;
+            height: 300px;
+            background: var(--color-primary-400);
+            bottom: -60px;
+            right: -60px;
+            animation-delay: -7s;
+        }
+
+        @keyframes floatOrb {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(40px, 30px) scale(1.12); }
+        }
+
+        /* Splash / Loading Screen */
+        .loading-screen {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at center, var(--color-primary-900) 0%, var(--color-primary-950) 55%, var(--surface-raised-bg) 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.7s ease;
+            gap: var(--spacing-24);
+            color: var(--color-text);
+        }
+
+        .loading-screen.fade-out {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .loader-ring-wrap {
+            position: relative;
+            width: 120px;
+            height: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loader-ring {
+            position: absolute;
+            inset: 0;
+            border-radius: var(--radius-full);
+            border: 3px solid rgba(154, 173, 255, 0.15);
+            border-top-color: var(--color-primary-400);
+            border-right-color: var(--color-primary-600);
+            animation: spinRing 1.4s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .loader-ring-inner {
+            position: absolute;
+            inset: 12px;
+            border-radius: var(--radius-full);
+            border: 2px dashed rgba(215, 236, 255, 0.25);
+            animation: spinRing 3s linear infinite reverse;
+        }
+
+        @keyframes spinRing {
+            to { transform: rotate(360deg); }
+        }
+
+        .loading-logo {
+            width: 56px;
+            height: 56px;
+            animation: pulseLogo 2s ease-in-out infinite;
+            filter: drop-shadow(0 4px 16px rgba(77, 67, 254, 0.6));
+        }
+
+        @keyframes pulseLogo {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.08); }
+        }
+
+        .loading-bar-track {
+            width: 220px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: var(--radius-full);
+            overflow: hidden;
+        }
+
+        .loading-bar-fill {
+            height: 100%;
+            width: 40%;
+            background: linear-gradient(90deg, var(--color-primary-400), var(--color-primary-600), var(--color-primary-200));
+            border-radius: var(--radius-full);
+            animation: shimmerBar 1.2s ease-in-out infinite;
+        }
+
+        @keyframes shimmerBar {
+            0% { transform: translateX(-100%); width: 45%; }
+            100% { transform: translateX(250%); width: 65%; }
+        }
+
+        /* Main Glass Container */
+        .glass-container {
+            position: relative;
+            z-index: 1;
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-radius: var(--radius-xl);
+            border: 1px solid var(--card-border);
+            box-shadow: var(--shadow-sm), var(--shadow-xs);
+            padding: var(--spacing-24);
+            width: 100%;
+            max-width: 960px;
+            margin: auto;
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-16);
+            opacity: 0;
+            transform: translateY(24px) scale(0.985);
+            transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+                        transform 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+                        max-width 0.35s ease,
+                        background 0.35s ease,
+                        border-color 0.35s ease;
+        }
+
+        .glass-container.visible {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+
+        .glass-container.split-active {
+            max-width: var(--container-width);
+        }
+
+        /* Status Pill */
+        .runtime-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 14px;
+            border-radius: var(--radius-full);
+            background: var(--toolbar-btn-bg);
+            border: 1px solid var(--card-border);
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-muted);
+            transition: all 0.25s ease;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: var(--radius-full);
+            background: #f59e0b;
+            box-shadow: 0 0 8px #f59e0b;
+            transition: background 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .status-dot.ready {
+            background: #10b981;
+            box-shadow: 0 0 10px #10b981;
+        }
+
+        .status-dot.running {
+            background: var(--color-primary-400);
+            box-shadow: 0 0 12px var(--color-primary-400);
+            animation: pingDot 1s cubic-bezier(0, 0, 0.2, 1) infinite;
+        }
+
+        .status-dot.error {
+            background: var(--red);
+            box-shadow: 0 0 10px var(--red);
+        }
+
+        @keyframes pingDot {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.45); opacity: 0.65; }
+        }
+
+        /* Navigation Tabs */
+        .tabs-wrapper {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: var(--spacing-12);
+            border-bottom: 1px solid var(--card-border);
+            padding-bottom: var(--spacing-12);
+        }
+
+        .tabs {
+            display: inline-flex;
+            background: var(--tab-pill-bg);
+            padding: 4px;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--card-border);
+            gap: 4px;
+        }
+
+        .tab-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            background: transparent;
+            border: none;
+            padding: 8px 16px;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-family: var(--font-font-1);
+            font-size: var(--font-size-body);
+            font-weight: 600;
+            border-radius: var(--radius-md);
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-main);
+            background: rgba(77, 67, 254, 0.1);
+        }
+
+        .tab-btn.active {
+            color: var(--action-primary-fg);
+            background: var(--color-primary);
+            box-shadow: var(--shadow-xs);
+        }
+
+        .tab-badge {
+            font-size: 11px;
+            font-family: var(--font-mono);
+            padding: 1px 6px;
+            border-radius: var(--radius-full);
+            background: rgba(255, 255, 255, 0.18);
+            color: inherit;
+        }
+
+        /* Icon Utility Buttons */
+        .icon-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 7px 12px;
+            border-radius: var(--radius-md);
+            background: var(--toolbar-btn-bg);
+            border: 1px solid var(--card-border);
+            color: var(--text-main);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .icon-btn:hover {
+            background: var(--toolbar-btn-hover);
+            border-color: var(--color-primary-400);
+            transform: translateY(-1px);
+        }
+
+        .icon-btn:active {
+            transform: translateY(0);
+        }
+
+        .preset-select {
+            background: var(--toolbar-btn-bg);
+            border: 1px solid var(--card-border);
+            color: var(--text-main);
+            font-size: 12px;
+            font-weight: 600;
+            padding: 7px 12px;
+            border-radius: var(--radius-md);
+            outline: none;
+            cursor: pointer;
+            transition: border-color 0.2s ease;
+        }
+
+        .preset-select:focus, .preset-select:hover {
+            border-color: var(--color-primary-400);
+        }
+
+        .preset-select option {
+            background: var(--surface-raised-bg);
+            color: var(--surface-raised-fg);
+        }
+
+        /* Workspace Panels */
+        .workspace-grid {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-16);
+        }
+
+        .glass-container.split-active .workspace-grid {
+            display: grid;
+            grid-template-columns: 1.15fr 0.85fr;
+            gap: var(--spacing-16);
+            align-items: stretch;
+        }
+
+        .glass-container.split-active #code-tab,
+        .glass-container.split-active #console-tab {
+            display: flex !important;
+        }
+
+        .tab-content {
+            display: none;
+            flex-direction: column;
+            gap: var(--spacing-12);
+            animation: tabFadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .tab-content.active {
+            display: flex;
+        }
+
+        @keyframes tabFadeIn {
+            from { opacity: 0; transform: translateY(6px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Code Editor with Line Numbers */
+        .editor-frame {
+            display: flex;
+            flex-direction: column;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            transition: border-color 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .editor-frame:focus-within {
+            border-color: var(--color-primary-400);
+            box-shadow: 0 0 0 3px rgba(77, 67, 254, 0.25);
+        }
+
+        .panel-Subheader {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px 14px;
+            background: rgba(255, 255, 255, 0.03);
+            border-bottom: 1px solid rgba(154, 173, 255, 0.1);
+            font-size: 12px;
+            color: var(--color-text-3);
+        }
+
+        .window-dots {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .win-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: var(--radius-full);
+        }
+
+        .editor-body {
+            position: relative;
+            display: flex;
+            min-height: 320px;
+            max-height: 58vh;
+        }
+
+        .line-numbers {
+            user-select: none;
+            padding: 1rem 0.75rem;
+            min-width: 3.25rem;
+            text-align: right;
+            background: var(--gutter-bg);
+            color: rgba(154, 173, 255, 0.45);
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+            line-height: 1.6;
+            overflow: hidden;
+            border-right: 1px solid rgba(154, 173, 255, 0.1);
+            white-space: pre;
+        }
+
+        #editor,
+        #stdin {
+            display: block;
+            width: 100%;
+            background: transparent;
+            color: var(--color-text-4);
+            border: none;
+            padding: 1rem;
+            min-height: 320px;
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+            line-height: 1.6;
+            tab-size: 4;
+            white-space: pre;
+            overflow: auto;
+            outline: none;
+            resize: vertical;
+            caret-color: var(--color-primary-300);
+        }
+
+        #stdin {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius-lg);
+            min-height: 280px;
+        }
+
+        #stdin:focus {
+            border-color: var(--color-primary-400);
+            box-shadow: 0 0 0 3px rgba(77, 67, 254, 0.25);
+        }
+
+        #stdin::placeholder {
+            color: rgba(173, 172, 190, 0.45);
+            white-space: pre-wrap;
+        }
+
+        .editor-statusbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 6px 14px;
+            background: rgba(20, 5, 95, 0.3);
+            border-top: 1px solid rgba(154, 173, 255, 0.1);
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--color-text-3);
+        }
+
+        /* Console Output */
+        .console-frame {
+            display: flex;
+            flex-direction: column;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            height: 100%;
+        }
+
+        #console-container {
+            padding: 1rem 1.15rem;
+            min-height: 320px;
+            max-height: 58vh;
+            overflow-y: auto;
+            font-family: var(--font-mono);
+            font-size: 0.875rem;
+            line-height: 1.6;
+            color: #4ade80;
+            white-space: pre-wrap;
+            word-break: break-word;
+            flex-grow: 1;
+        }
+
+        .out-out {
+            color: #4ade80;
+        }
+
+        .out-err {
+            color: #ff6b81;
+        }
+
+        .out-in {
+            color: var(--color-primary-200);
+            font-style: italic;
+        }
+
+        .out-meta {
+            color: var(--color-text-3);
+        }
+
+        .cursor {
+            display: inline-block;
+            font-weight: 700;
+            color: var(--color-primary-400);
+            animation: blink-caret 0.8s step-end infinite;
+        }
+
+        @keyframes blink-caret {
+            from, to { opacity: 0; }
+            50% { opacity: 1; }
+        }
+
+        /* Primary Run / Stop Action Button */
+        .btn {
+            background: linear-gradient(135deg, var(--color-primary-500) 0%, var(--color-primary-600) 50%, var(--color-primary-700) 100%);
+            color: var(--action-primary-fg);
+            font-family: var(--font-sans);
+            font-size: var(--font-size-title-8);
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            padding: 0.85rem 1.75rem;
+            border-radius: var(--radius-lg);
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            cursor: pointer;
+            transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                        box-shadow 0.25s ease,
+                        opacity 0.25s ease,
+                        background 0.3s ease;
+            box-shadow: var(--shadow-sm);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 32px rgba(77, 67, 254, 0.6);
+        }
+
+        .btn:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .btn.stop {
+            background: linear-gradient(135deg, #f87171 0%, #dc2626 100%);
+            color: var(--color-text);
+            box-shadow: 0 8px 28px rgba(220, 38, 38, 0.45);
+        }
+
+        /* Feature Cards in About Tab */
+        .feature-card {
+            background: rgba(77, 67, 254, 0.08);
+            border: 1px solid var(--card-border);
+            border-radius: var(--radius-lg);
+            padding: var(--spacing-16);
+            transition: transform 0.25s ease, border-color 0.25s ease;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-3px);
+            border-color: var(--color-primary-400);
+        }
+
+        kbd {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: var(--radius-sm);
+            padding: 2px 6px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+        }
+
+        /* Custom Scrollbars */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.15);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(121, 133, 255, 0.35);
+            border-radius: var(--radius-full);
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--color-primary-400);
+        }
+
+        @media (max-width: 768px) {
+            .glass-container {
+                padding: var(--spacing-16);
+            }
+            .glass-container.split-active .workspace-grid {
+                grid-template-columns: 1fr;
+            }
+            .hide-mobile {
+                display: none !important;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Ambient Decorative Background Orbs -->
+    <div class="ambient-orb orb-1"></div>
+    <div class="ambient-orb orb-2"></div>
+
+    <!-- Animated Splash Screen -->
+    <div id="loading-screen" class="loading-screen">
+        <div class="loader-ring-wrap">
+            <div class="loader-ring"></div>
+            <div class="loader-ring-inner"></div>
+            <img src="https://upload.wikimedia.org/wikipedia/commons/c/c3/Python-logo-notext.svg" alt="Python Logo" class="loading-logo" />
+        </div>
+        <div class="text-center space-y-2 px-4">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold tracking-wider uppercase" style="background: rgba(77, 67, 254, 0.25); color: var(--color-primary-100); border: 1px solid rgba(154, 173, 255, 0.25);">
+                WebAssembly Studio
+            </div>
+            <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight brand-heading">Welcome to Python Compiler</h1>
+            <p class="text-sm" style="color: var(--color-text-3);">Initializing zero-latency browser execution engine...</p>
+        </div>
+        <div class="loading-bar-track">
+            <div class="loading-bar-fill"></div>
+        </div>
+    </div>
+
+    <!-- Main Application Container -->
+    <div id="main-content" class="glass-container">
+        <!-- Top Header Bar -->
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="p-2.5 rounded-2xl flex items-center justify-center" style="background: linear-gradient(135deg, rgba(77, 67, 254, 0.25), rgba(20, 5, 95, 0.5)); border: 1px solid rgba(154, 173, 255, 0.25); box-shadow: var(--shadow-xs);">
+                    <img src="https://upload.wikimedia.org/wikipedia/commons/c/c3/Python-logo-notext.svg" alt="Python Logo" class="h-8 w-8" />
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="text-2xl sm:text-3xl font-extrabold brand-heading leading-none">Python Compiler</h1>
+                        <span class="text-[11px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider" style="background: var(--color-primary); color: var(--color-text);">Super UI</span>
+                    </div>
+                    <p class="text-xs mt-1" style="color: var(--text-muted);">Client-side Pyodide Wasm IDE &bull; Zero server latency</p>
+                </div>
+            </div>
+
+            <!-- Status & Global Controls -->
+            <div class="flex items-center gap-2 flex-wrap justify-center">
+                <div class="runtime-badge" title="Pyodide Runtime Status">
+                    <span id="status-dot" class="status-dot"></span>
+                    <span id="runtime-info">Loading Python runtime...</span>
+                </div>
+
+                <button id="split-toggle-btn" class="icon-btn hide-mobile" title="Toggle Side-by-Side Split View">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7" />
+                    </svg>
+                    <span id="split-label">Split</span>
+                </button>
+
+                <button id="sound-toggle-btn" class="icon-btn" title="Toggle Keystroke Sound Effects">
+                    <svg id="icon-sound-on" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                    </svg>
+                    <svg id="icon-sound-off" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+                    </svg>
+                </button>
+
+                <button id="theme-toggle-btn" class="icon-btn" title="Switch Dark / Light Surface Theme">
+                    <svg id="icon-moon" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                    <svg id="icon-sun" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Navigation Tabs & Editor Actions -->
+        <div class="tabs-wrapper">
+            <div class="tabs" role="tablist">
+                <button class="tab-btn active" onclick="showTab('code')" role="tab">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                    </svg>
+                    <span>Code</span>
+                </button>
+                <button class="tab-btn" onclick="showTab('input')" role="tab">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span>Input</span>
+                    <span id="stdin-badge" class="tab-badge">0</span>
+                </button>
+                <button class="tab-btn" onclick="showTab('console')" role="tab">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                    </svg>
+                    <span>Console</span>
+                </button>
+                <button class="tab-btn" onclick="showTab('about')" role="tab">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>About</span>
+                </button>
+            </div>
+
+            <!-- Quick Templates & Code Utilities -->
+            <div class="flex items-center gap-2 flex-wrap">
+                <select id="preset-select" class="preset-select" aria-label="Load code template">
+                    <option value="">✨ Load Example...</option>
+                    <option value="hello">👋 Hello World</option>
+                    <option value="input">⌨️ Interactive Input()</option>
+                    <option value="async">⚡ Async / Await Tasks</option>
+                    <option value="fibonacci">🌀 Fibonacci & Decorator</option>
+                    <option value="stats">📊 Data Summary</option>
+                </select>
+
+                <button id="copy-code-btn" class="icon-btn" title="Copy Python Code">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                    </svg>
+                    <span id="copy-code-label">Copy</span>
+                </button>
+
+                <button id="download-code-btn" class="icon-btn" title="Download main.py">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    <span>.py</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Workspace Grid -->
+        <div class="workspace-grid">
+            <!-- CODE TAB -->
+            <div id="code-tab" class="tab-content active">
+                <div class="editor-frame">
+                    <div class="panel-Subheader">
+                        <div class="window-dots">
+                            <span class="win-dot" style="background: #ff5f56;"></span>
+                            <span class="win-dot" style="background: #ffbd2e;"></span>
+                            <span class="win-dot" style="background: #27c93f;"></span>
+                            <span class="ml-2 font-mono font-semibold text-xs" style="color: var(--color-primary-200);">main.py</span>
+                        </div>
+                        <button id="clear-code-btn" class="hover:underline text-xs font-medium" style="color: var(--color-text-3);">Reset</button>
+                    </div>
+
+                    <div class="editor-body">
+                        <div id="line-numbers" class="line-numbers" aria-hidden="true">1&#10;2</div>
+                        <textarea id="editor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-label="Python code"># Write your Python code here
+print("Hello, World! 🚀")</textarea>
+                    </div>
+
+                    <div class="editor-statusbar">
+                        <div class="flex items-center gap-4">
+                            <span id="cursor-pos">Ln 2, Col 26</span>
+                            <span id="char-count">49 chars</span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span>UTF-8</span>
+                            <span>4 Spaces</span>
+                            <span style="color: var(--color-primary-300);">Ctrl/Cmd + Enter to Run</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- INPUT TAB -->
+            <div id="input-tab" class="tab-content">
+                <div class="flex items-center justify-between px-1">
+                    <span class="text-xs font-semibold" style="color: var(--text-muted);">Standard Input Stream (stdin) — 1 line per <code>input()</code> call</span>
+                    <button id="clear-stdin-btn" class="text-xs font-semibold hover:underline" style="color: var(--color-primary-400);">Clear Input</button>
+                </div>
+                <textarea id="stdin" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-label="Program input" placeholder="Program input (stdin).&#10;One value per line - each input() call reads the next line.&#10;&#10;Example:&#10;Alice&#10;42"></textarea>
+            </div>
+
+            <!-- CONSOLE TAB -->
+            <div id="console-tab" class="tab-content">
+                <div class="console-frame">
+                    <div class="panel-Subheader">
+                        <div class="flex items-center gap-2">
+                            <span class="font-mono font-semibold text-xs" style="color: var(--color-primary-200);">terminal://stdout</span>
+                            <span id="exit-badge" class="hidden text-[11px] font-mono px-2 py-0.5 rounded-full"></span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button id="copy-console-btn" class="hover:underline text-xs" style="color: var(--color-text-3);">Copy Output</button>
+                            <button id="clear-console-btn" class="hover:underline text-xs" style="color: var(--color-text-3);">Clear</button>
+                        </div>
+                    </div>
+                    <div id="console-container" aria-live="polite"></div>
+                </div>
+            </div>
+
+            <!-- ABOUT TAB -->
+            <div id="about-tab" class="tab-content">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div class="feature-card sm:col-span-2">
+                        <h2 class="text-xl font-bold mb-1 brand-heading" style="color: var(--color-primary-300);">Super Python Compiler Studio</h2>
+                        <p class="text-sm leading-relaxed" style="color: var(--text-muted);">
+                            Designed with a high-contrast <strong>GlassMorphism</strong> aesthetic and powered by <strong>Pyodide (WebAssembly)</strong>. Python executes directly inside your browser worker thread with zero backend servers, API keys, or rate limits.
+                        </p>
+                    </div>
+                    <div class="feature-card">
+                        <h3 class="font-bold text-base mb-1 brand-heading">📦 Auto Package Installer</h3>
+                        <p class="text-xs leading-relaxed" style="color: var(--text-muted);">
+                            Import scientific stacks like <code>numpy</code>, <code>pandas</code>, <code>scipy</code>, or <code>matplotlib</code>—or pure-Python wheels from PyPI via <code>micropip</code>—and they install on demand automatically.
+                        </p>
+                    </div>
+                    <div class="feature-card">
+                        <h3 class="font-bold text-base mb-1 brand-heading">⚡ Async & Non-Blocking Worker</h3>
+                        <p class="text-xs leading-relaxed" style="color: var(--text-muted);">
+                            Runs in a dedicated Web Worker with top-level <code>await</code> and automatic <code>asyncio.run()</code> rewriting. Infinite loops can be safely terminated anytime using the <strong>Stop</strong> button.
+                        </p>
+                    </div>
+                    <div class="feature-card sm:col-span-2 flex flex-wrap items-center justify-between gap-2">
+                        <span class="text-xs font-semibold" style="color: var(--text-muted);">Keyboard Shortcuts:</span>
+                        <div class="flex flex-wrap gap-3 text-xs">
+                            <span><kbd>Ctrl/Cmd</kbd> + <kbd>Enter</kbd> Run Code</span>
+                            <span><kbd>Tab</kbd> / <kbd>Shift+Tab</kbd> Indent Block</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Run / Stop Button Footer -->
+        <div class="flex justify-center pt-1">
+            <button id="run-btn" class="btn w-full flex items-center justify-center gap-2" disabled>
+                <svg id="icon-play" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" />
+                </svg>
+                <svg id="icon-stop" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 hidden" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 7a1 1 0 00-1 1v4a1 1 0 001 1h4a1 1 0 001-1V8a1 1 0 00-1-1H8z" clip-rule="evenodd" />
+                </svg>
+                <span id="run-label">Loading Python...</span>
+            </button>
+        </div>
+    </div>
+
+    <audio id="typing-sound" preload="auto">
+        <source src="computer-access-granted.mp3" type="audio/mpeg">
+    </audio>
+
+    <!-- Python side of the runner: executes user code, reports exit code, handles async + missing packages -->
+    <script type="text/x-python" id="py-harness">
+import ast, builtins, inspect, linecache, sys, traceback
+
+
+class _AsyncRunRewriter(ast.NodeTransformer):
+    """Turn module-level asyncio.run(x) / loop.run_until_complete(x) into `await x`
+    (Pyodide's event loop is already running, so those calls cannot block)."""
+
+    def visit_FunctionDef(self, node):
+        return node
+
+    visit_AsyncFunctionDef = visit_FunctionDef
+    visit_ClassDef = visit_FunctionDef
+    visit_Lambda = visit_FunctionDef
+
+    def visit_Call(self, node):
+        self.generic_visit(node)
+        f = node.func
+        if (isinstance(f, ast.Attribute) and node.args
+                and not isinstance(node.args[0], ast.Starred)):
+            is_run = (f.attr == 'run' and isinstance(f.value, ast.Name)
+                      and f.value.id == 'asyncio')
+            if is_run or f.attr == 'run_until_complete':
+                return ast.copy_location(ast.Await(value=node.args[0]), node)
+        return node
+
+
+def __pyc_missing(src):
+    """Top-level imported modules that are not available yet."""
+    from pyodide.code import find_imports
+    import importlib.util
+    missing = []
+    for name in find_imports(src):
+        if name in sys.modules:
+            continue
+        try:
+            if importlib.util.find_spec(name) is None:
+                missing.append(name)
+        except Exception:
+            missing.append(name)
+    return missing
+
+
+async def __pyc_run(src):
+    code = 0
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(line_buffering=True)
+        except Exception:
+            pass
+    try:
+        linecache.cache['<main>'] = (len(src), None, src.splitlines(True), '<main>')
+        tree = ast.parse(src, '<main>', 'exec')
+        tree = ast.fix_missing_locations(_AsyncRunRewriter().visit(tree))
+        compiled = compile(tree, '<main>', 'exec', flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
+        scope = {'__name__': '__main__', '__file__': 'main.py', '__builtins__': builtins}
+        result = eval(compiled, scope)
+        if inspect.isawaitable(result):
+            await result
+    except SystemExit as e:
+        c = e.code
+        if c is None:
+            code = 0
+        elif isinstance(c, int):
+            code = c
+        else:
+            print(c, file=sys.stderr)
+            code = 1
+    except BaseException:
+        etype, evalue, tb = sys.exc_info()
+        while tb is not None and tb.tb_frame.f_code.co_filename != '<main>':
+            tb = tb.tb_next
+        traceback.print_exception(etype, evalue, tb)
+        code = 1
+    finally:
+        try:
+            sys.stdout.flush()
+            sys.stderr.flush()
+        except Exception:
+            pass
+    return code
+    </script>
+
+    <!-- Web Worker: loads Pyodide off the main thread so Stop / timeouts always work -->
+    <script type="text/plain" id="worker-src">
+const PYODIDE_URL = 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/';
+const MAX_CHARS = 300000;
+
+let pyodide = null;
+let current = null;      // 'out' | 'err' : stream the pending bytes belong to
+let pending = [];
+let sent = 0;
+let overflowed = false;
+let stdinLines = [];
+const decoders = { out: new TextDecoder(), err: new TextDecoder() };
+const encoder = new TextEncoder();
+
+function flush() {
+    if (!pending.length || !current) { pending = []; return; }
+    const text = decoders[current].decode(new Uint8Array(pending), { stream: true });
+    pending = [];
+    if (!text || overflowed) return;
+    sent += text.length;
+    if (sent > MAX_CHARS) {
+        overflowed = true;
+        postMessage({ type: 'overflow' });
+        return;
+    }
+    postMessage({ type: 'chunk', stream: current, text: text });
+}
+
+function writeByte(stream, b) {
+    if (current !== stream) { flush(); current = stream; }
+    pending.push(b & 255);
+    if (b === 10 || pending.length >= 4096) flush();
+}
+
+function readStdin() {
+    flush(); // make sure a pending input() prompt is shown before the echoed answer
+    if (!stdinLines.length) return undefined; // EOF -> input() raises EOFError like a real pipe
+    const line = stdinLines.shift() + '\n';
+    postMessage({ type: 'chunk', stream: 'in', text: line }); // echo, like a terminal
+    return encoder.encode(line);
+}
+
+function splitLines(text) {
+    if (!text) return [];
+    const lines = text.replace(/\r\n?/g, '\n').split('\n');
+    if (lines.length && lines[lines.length - 1] === '') lines.pop();
+    return lines;
+}
+
+async function init(harness) {
+    postMessage({ type: 'status', text: 'Loading Python runtime...' });
+    importScripts(PYODIDE_URL + 'pyodide.js');
+    pyodide = await loadPyodide({ indexURL: PYODIDE_URL });
+    pyodide.setStdout({ raw: function (b) { writeByte('out', b); } });
+    pyodide.setStderr({ raw: function (b) { writeByte('err', b); } });
+    pyodide.setStdin({ stdin: readStdin });
+    await pyodide.runPythonAsync(harness);
+    const python = pyodide.runPython('import sys\nsys.version.split()[0]');
+    postMessage({ type: 'ready', python: python });
+}
+
+async function prepare(code) {
+    const report = function (m) { postMessage({ type: 'status', text: m }); };
+    // Packages bundled with Pyodide (numpy, pandas, matplotlib, scipy, ...)
+    await pyodide.loadPackagesFromImports(code, { messageCallback: report, errorCallback: report });
+    // Anything still missing: try pure-Python wheels from PyPI
+    const missing = pyodide.globals.get('__pyc_missing')(code).toJs();
+    if (missing.length) {
+        report('Installing ' + missing.join(', ') + ' from PyPI...');
+        await pyodide.loadPackage('micropip');
+        const micropip = pyodide.pyimport('micropip');
+        for (const name of missing) {
+            try { await micropip.install(name); }
+            catch (e) { report('Could not install "' + name + '" (not on PyPI or not pure-Python).'); }
+        }
+    }
+}
+
+self.onmessage = async function (e) {
+    const m = e.data;
+    if (m.type === 'init') {
+        try { await init(m.harness); }
+        catch (err) { postMessage({ type: 'initError', message: String((err && err.message) || err) }); }
+        return;
+    }
+    if (m.type === 'run') {
+        stdinLines = splitLines(m.stdin);
+        sent = 0; overflowed = false; current = null; pending = [];
+        decoders.out = new TextDecoder(); decoders.err = new TextDecoder();
+        const t0 = performance.now();
+        let code = 1;
+        try {
+            try { await prepare(m.code); }
+            catch (err) { postMessage({ type: 'status', text: 'Package setup problem: ' + String((err && err.message) || err) }); }
+            postMessage({ type: 'started' });
+            pyodide.globals.set('__pyc_src', m.code);
+            code = await pyodide.runPythonAsync('await __pyc_run(__pyc_src)');
+        } catch (err) {
+            flush();
+            current = 'err';
+            postMessage({ type: 'chunk', stream: 'err', text: String((err && err.message) || err) + '\n' });
+        }
+        flush();
+        postMessage({ type: 'done', code: code, ms: Math.round(performance.now() - t0) });
+    }
+};
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const loadingScreen = document.getElementById('loading-screen');
+            const mainContent = document.getElementById('main-content');
+            const editor = document.getElementById('editor');
+            const lineNumbers = document.getElementById('line-numbers');
+            const cursorPosEl = document.getElementById('cursor-pos');
+            const charCountEl = document.getElementById('char-count');
+            const stdinBox = document.getElementById('stdin');
+            const stdinBadge = document.getElementById('stdin-badge');
+            const consoleContainer = document.getElementById('console-container');
+            const exitBadge = document.getElementById('exit-badge');
+            const runBtn = document.getElementById('run-btn');
+            const runLabel = document.getElementById('run-label');
+            const iconPlay = document.getElementById('icon-play');
+            const iconStop = document.getElementById('icon-stop');
+            const runInfo = document.getElementById('runtime-info');
+            const statusDot = document.getElementById('status-dot');
+            const typingSound = document.getElementById('typing-sound');
+
+            const RUN_LIMIT_MS = 30000;   // time allowed for the program itself
+            const PREP_LIMIT_MS = 180000; // time allowed for downloading packages
+
+            let soundEnabled = true;
+            let audioCtx = null;
+
+            typingSound.volume = 0.6;
+
+            // Synthesized fallback click + HTML5 audio support
+            function playKeySound() {
+                if (!soundEnabled) return;
+                typingSound.currentTime = 0;
+                typingSound.play().catch(() => {
+                    try {
+                        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                        const osc = audioCtx.createOscillator();
+                        const gain = audioCtx.createGain();
+                        osc.type = 'sine';
+                        osc.frequency.setValueAtTime(520 + Math.random() * 140, audioCtx.currentTime);
+                        gain.gain.setValueAtTime(0.015, audioCtx.currentTime);
+                        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.025);
+                        osc.connect(gain);
+                        gain.connect(audioCtx.destination);
+                        osc.start();
+                        osc.stop(audioCtx.currentTime + 0.025);
+                    } catch (_) {}
+                });
+            }
+
+            setTimeout(() => {
+                loadingScreen.classList.add('fade-out');
+                mainContent.classList.add('visible');
+            }, 1400);
+
+            function showTab(tabId) {
+                document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+                document.getElementById(`${tabId}-tab`).classList.add('active');
+                document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+                const activeBtn = document.querySelector(`[onclick="showTab('${tabId}')"]`);
+                if (activeBtn) activeBtn.classList.add('active');
+            }
+
+            window.showTab = showTab;
+
+            /* ---------- Line Numbers & Status Bar ---------- */
+            function updateEditorMetrics() {
+                const val = editor.value;
+                const lines = val.split('\n').length;
+                let nums = '';
+                for (let i = 1; i <= lines; i++) {
+                    nums += i + (i < lines ? '\n' : '');
+                }
+                lineNumbers.textContent = nums;
+                charCountEl.textContent = `${val.length} chars`;
+
+                const pos = editor.selectionStart || 0;
+                const upToCursor = val.slice(0, pos).split('\n');
+                const ln = upToCursor.length;
+                const col = upToCursor[upToCursor.length - 1].length + 1;
+                cursorPosEl.textContent = `Ln ${ln}, Col ${col}`;
+            }
+
+            editor.addEventListener('input', updateEditorMetrics);
+            editor.addEventListener('click', updateEditorMetrics);
+            editor.addEventListener('keyup', updateEditorMetrics);
+            editor.addEventListener('scroll', () => {
+                lineNumbers.scrollTop = editor.scrollTop;
+            });
+
+            function updateStdinBadge() {
+                const raw = stdinBox.value.replace(/\r\n?/g, '\n');
+                const lines = raw ? raw.split('\n').filter((l, idx, arr) => idx < arr.length - 1 || l !== '').length : 0;
+                stdinBadge.textContent = lines;
+            }
+
+            stdinBox.addEventListener('input', updateStdinBadge);
+
+            /* ---------- Toolbar & Preset Templates ---------- */
+            const EXAMPLES = {
+                hello: `# Welcome to Python Compiler (Super Edition)\nname = "Developer"\nprint(f"Hello, {name}! 🚀")\nprint("Python is running natively in WebAssembly.")`,
+                input: `# Interactive input() example\n# Switch to the 'Input' tab to customize the lines below!\nname = input("Enter your name: ")\nrole = input("Enter your favorite stack: ")\nprint(f"\\n✨ Welcome {name}, master of {role}!")`,
+                async: `import asyncio\n\nasync def task(name, delay):\n    print(f"[{name}] Starting task...")\n    await asyncio.sleep(delay)\n    print(f"[{name}] Completed after {delay}s!")\n    return delay\n\nasync def main():\n    results = await asyncio.gather(\n        task("Alpha", 0.4),\n        task("Beta", 0.8),\n        task("Gamma", 0.6)\n    )\n    print(f"\\nAll async tasks finished! Total work: {sum(results):.1f}s")\n\nasyncio.run(main())`,
+                fibonacci: `from functools import lru_cache\n\n@lru_cache(maxsize=None)\ndef fib(n: int) -> int:\n    return n if n < 2 else fib(n - 1) + fib(n - 2)\n\nsequence = [fib(i) for i in range(15)]\nprint("First 15 Fibonacci numbers:")\nprint(" -> ".join(map(str, sequence)))`,
+                stats: `import statistics\n\nscores = [88, 92, 79, 95, 100, 84, 91, 89]\nprint("📊 Dataset:", scores)\nprint(f"• Mean:   {statistics.mean(scores):.2f}")\nprint(f"• Median: {statistics.median(scores):.2f}")\nprint(f"• Stdev:  {statistics.stdev(scores):.2f}")`
+            };
+
+            document.getElementById('preset-select').addEventListener('change', (e) => {
+                const key = e.target.value;
+                if (!key || !EXAMPLES[key]) return;
+                editor.value = EXAMPLES[key];
+                if (key === 'input' && !stdinBox.value.trim()) {
+                    stdinBox.value = "Subhojit\nPython & WebAssembly";
+                    updateStdinBadge();
+                }
+                updateEditorMetrics();
+                showTab('code');
+                e.target.value = '';
+            });
+
+            document.getElementById('copy-code-btn').addEventListener('click', async () => {
+                const label = document.getElementById('copy-code-label');
+                await navigator.clipboard.writeText(editor.value);
+                label.textContent = 'Copied!';
+                setTimeout(() => { label.textContent = 'Copy'; }, 1500);
+            });
+
+            document.getElementById('download-code-btn').addEventListener('click', () => {
+                const blob = new Blob([editor.value], { type: 'text/x-python' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'main.py';
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+
+            document.getElementById('clear-code-btn').addEventListener('click', () => {
+                editor.value = '# Write your Python code here\n';
+                updateEditorMetrics();
+                editor.focus();
+            });
+
+            document.getElementById('clear-stdin-btn').addEventListener('click', () => {
+                stdinBox.value = '';
+                updateStdinBadge();
+                stdinBox.focus();
+            });
+
+            document.getElementById('copy-console-btn').addEventListener('click', async (e) => {
+                const text = consoleContainer.textContent.replace(/_$/, '');
+                await navigator.clipboard.writeText(text);
+                const btn = e.currentTarget;
+                const prev = btn.textContent;
+                btn.textContent = 'Copied!';
+                setTimeout(() => { btn.textContent = prev; }, 1400);
+            });
+
+            document.getElementById('clear-console-btn').addEventListener('click', () => {
+                clearConsole();
+            });
+
+            // Split View Toggle
+            document.getElementById('split-toggle-btn').addEventListener('click', () => {
+                const active = mainContent.classList.toggle('split-active');
+                document.getElementById('split-label').textContent = active ? 'Tabbed' : 'Split';
+            });
+
+            // Sound Toggle
+            document.getElementById('sound-toggle-btn').addEventListener('click', () => {
+                soundEnabled = !soundEnabled;
+                document.getElementById('icon-sound-on').classList.toggle('hidden', !soundEnabled);
+                document.getElementById('icon-sound-off').classList.toggle('hidden', soundEnabled);
+            });
+
+            // Theme Toggle
+            document.getElementById('theme-toggle-btn').addEventListener('click', () => {
+                const html = document.documentElement;
+                const next = html.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+                html.setAttribute('data-theme', next);
+                document.getElementById('icon-moon').classList.toggle('hidden', next === 'light');
+                document.getElementById('icon-sun').classList.toggle('hidden', next !== 'light');
+            });
+
+            /* ---------- Console with typewriter effect ---------- */
+            const cursorEl = document.createElement('span');
+            cursorEl.className = 'cursor';
+            cursorEl.textContent = '_';
+            consoleContainer.appendChild(cursorEl);
+
+            let queue = [];
+            let backlog = 0;
+            let pumping = false;
+            let typedCount = 0;
+            let lastSpan = null;
+            let lastStream = null;
+
+            function appendText(stream, text) {
+                if (!lastSpan || lastStream !== stream) {
+                    lastSpan = document.createElement('span');
+                    lastSpan.className = 'out-' + stream;
+                    consoleContainer.insertBefore(lastSpan, cursorEl);
+                    lastStream = stream;
+                }
+                lastSpan.textContent += text;
+                consoleContainer.scrollTop = consoleContainer.scrollHeight;
+            }
+
+            function pump() {
+                pumping = true;
+                const step = () => {
+                    const item = queue[0];
+                    if (!item) { pumping = false; return; }
+                    const fast = backlog > 300;
+                    const n = fast ? item.text.length : 1;
+                    const piece = item.text.slice(0, n);
+                    item.text = item.text.slice(n);
+                    backlog -= n;
+                    if (!item.text) queue.shift();
+                    appendText(item.stream, piece);
+                    if (!fast && piece.trim() !== '' && (++typedCount % 2 === 0)) playKeySound();
+                    setTimeout(step, fast ? 0 : 8 + Math.random() * 8);
+                };
+                step();
+            }
+
+            function enqueue(stream, text) {
+                if (!text) return;
+                queue.push({ stream, text });
+                backlog += text.length;
+                if (!pumping) pump();
+            }
+
+            function clearConsole() {
+                queue = [];
+                backlog = 0;
+                lastSpan = null;
+                lastStream = null;
+                exitBadge.classList.add('hidden');
+                consoleContainer.textContent = '';
+                consoleContainer.appendChild(cursorEl);
+            }
+
+            /* ---------- Python runtime (Web Worker running Pyodide) ---------- */
+            const workerSrc = document.getElementById('worker-src').textContent;
+            const harness = document.getElementById('py-harness').textContent;
+            const workerUrl = URL.createObjectURL(new Blob([workerSrc], { type: 'text/javascript' }));
+
+            let worker = null;
+            let btnState = 'loading';
+            let running = false;
+            let gotOutput = false;
+            let sawEOF = false;
+            let runTimer = null;
+
+            function setBtn(state) {
+                btnState = state;
+                runBtn.disabled = state === 'loading';
+                runBtn.classList.toggle('stop', state === 'running');
+                iconPlay.classList.toggle('hidden', state === 'running');
+                iconStop.classList.toggle('hidden', state !== 'running');
+                runLabel.textContent = {
+                    loading: 'Loading Python...',
+                    ready: 'Run Code',
+                    running: 'Stop Execution',
+                    failed: 'Retry Loading'
+                }[state];
+
+                statusDot.className = 'status-dot';
+                if (state === 'ready') statusDot.classList.add('ready');
+                else if (state === 'running') statusDot.classList.add('running');
+                else if (state === 'failed') statusDot.classList.add('error');
+            }
+
+            function armTimer(ms) {
+                clearTimeout(runTimer);
+                runTimer = setTimeout(() => {
+                    killAndRestart(`--- Timed out after ${RUN_LIMIT_MS / 1000}s: program stopped ---`);
+                }, ms);
+            }
+
+            function startWorker() {
+                if (worker) worker.terminate();
+                setBtn('loading');
+                runInfo.textContent = 'Loading Python runtime...';
+                worker = new Worker(workerUrl);
+                worker.onmessage = onWorkerMessage;
+                worker.onerror = (e) => {
+                    if (running) {
+                        killAndRestart('--- The Python runtime crashed ---');
+                    } else {
+                        initFailed(e && e.message ? e.message : 'worker error');
+                    }
+                };
+                worker.postMessage({ type: 'init', harness });
+            }
+
+            function killAndRestart(reason) {
+                clearTimeout(runTimer);
+                running = false;
+                enqueue('err', `\n${reason}\n`);
+                startWorker();
+            }
+
+            function initFailed(message) {
+                setBtn('failed');
+                runInfo.textContent = 'Python runtime failed to load';
+                enqueue('err', `--- Could not load Python runtime ---\n${message}\nCheck your internet connection, then press "Retry Loading".\n`);
+            }
+
+            function onWorkerMessage(e) {
+                const m = e.data;
+                switch (m.type) {
+                    case 'status':
+                        if (running) enqueue('meta', `> ${m.text}\n`);
+                        else runInfo.textContent = m.text;
+                        break;
+                    case 'ready':
+                        setBtn('ready');
+                        runInfo.textContent = `Python ${m.python} · Ready`;
+                        enqueue('meta', `> Python ${m.python} ready. Press Run Code (or Ctrl/Cmd + Enter).\n`);
+                        break;
+                    case 'initError':
+                        initFailed(m.message);
+                        break;
+                    case 'started':
+                        armTimer(RUN_LIMIT_MS);
+                        break;
+                    case 'chunk':
+                        gotOutput = true;
+                        if (m.stream === 'err' && m.text.includes('EOFError')) sawEOF = true;
+                        enqueue(m.stream, m.text);
+                        break;
+                    case 'overflow':
+                        killAndRestart('--- Output limit reached: program stopped ---');
+                        break;
+                    case 'done':
+                        clearTimeout(runTimer);
+                        running = false;
+                        if (!gotOutput) enqueue('meta', 'Execution successful. No output.\n');
+                        if (sawEOF && !stdinBox.value.trim()) {
+                            enqueue('meta', '\n💡 Tip: this program reads input. Add values in the Input tab, one line per input() call.\n');
+                        }
+                        const sec = (m.ms / 1000).toFixed(2);
+                        enqueue('meta', `\n--- Process finished with exit code ${m.code} (${sec}s) ---\n`);
+                        exitBadge.classList.remove('hidden');
+                        exitBadge.textContent = `Exit ${m.code} · ${sec}s`;
+                        exitBadge.style.background = m.code === 0 ? 'rgba(74, 222, 128, 0.16)' : 'rgba(239, 68, 68, 0.2)';
+                        exitBadge.style.color = m.code === 0 ? '#4ade80' : '#ff6b81';
+                        setBtn('ready');
+                        break;
+                }
+            }
+
+            runBtn.addEventListener('click', () => {
+                if (btnState === 'failed') {
+                    clearConsole();
+                    enqueue('meta', '> Retrying...\n');
+                    startWorker();
+                    return;
+                }
+                if (btnState === 'running') {
+                    killAndRestart('--- Execution stopped ---');
+                    return;
+                }
+                if (btnState !== 'ready') return;
+
+                clearConsole();
+                showTab('console');
+                gotOutput = false;
+                sawEOF = false;
+                running = true;
+                enqueue('meta', '> Running main.py...\n');
+                setBtn('running');
+                armTimer(PREP_LIMIT_MS);
+                worker.postMessage({ type: 'run', code: editor.value, stdin: stdinBox.value });
+            });
+
+            /* ---------- Editor niceties: Tab, Shift+Tab, auto-indent, Ctrl/Cmd+Enter ---------- */
+            function replaceRange(from, to, text) {
+                editor.setSelectionRange(from, to);
+                if (!document.execCommand('insertText', false, text)) {
+                    editor.setRangeText(text, from, to, 'end');
+                }
+                updateEditorMetrics();
+            }
+
+            editor.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    runBtn.click();
+                    return;
+                }
+                if (e.isComposing) return;
+                const v = editor.value;
+                const start = editor.selectionStart;
+                const end = editor.selectionEnd;
+
+                if (e.key === 'Tab') {
+                    e.preventDefault();
+                    if (start === end && !e.shiftKey) {
+                        replaceRange(start, end, '    ');
+                        return;
+                    }
+                    const effEnd = (end > start && v[end - 1] === '\n') ? end - 1 : end;
+                    const lineStart = v.lastIndexOf('\n', start - 1) + 1;
+                    const nl = v.indexOf('\n', effEnd);
+                    const lineEnd = nl === -1 ? v.length : nl;
+                    const lines = v.slice(lineStart, lineEnd).split('\n');
+                    const out = lines.map(l => e.shiftKey ? l.replace(/^( {1,4}|\t)/, '') : '    ' + l);
+                    const block = out.join('\n');
+                    const delta = block.length - (lineEnd - lineStart);
+                    const firstDelta = out[0].length - lines[0].length;
+                    replaceRange(lineStart, lineEnd, block);
+                    editor.setSelectionRange(Math.max(lineStart, start + firstDelta), Math.max(lineStart, end + delta));
+                    return;
+                }
+
+                if (e.key === 'Enter' && !e.shiftKey && !e.altKey) {
+                    const lineStart = v.lastIndexOf('\n', start - 1) + 1;
+                    const before = v.slice(lineStart, start);
+                    const indent = before.match(/^[ \t]*/)[0];
+                    const extra = /:\s*(#.*)?$/.test(before) ? '    ' : '';
+                    if (indent || extra) {
+                        e.preventDefault();
+                        replaceRange(start, end, '\n' + indent + extra);
+                    }
+                }
+            });
+
+            stdinBox.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                    e.preventDefault();
+                    runBtn.click();
+                }
+            });
+
+            updateEditorMetrics();
+            updateStdinBadge();
+            enqueue('meta', '> Loading Python runtime...\n');
+            startWorker();
+        });
+    </script>
+</body>
+
+</html>
