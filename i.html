@@ -568,7 +568,6 @@
                 align-items: stretch;
             }
 
-            /* Pair Code + Console when Code or Console tab is selected */
             .glass-container.split-active[data-active-tab="code"] #code-tab,
             .glass-container.split-active[data-active-tab="code"] #console-tab,
             .glass-container.split-active[data-active-tab="console"] #code-tab,
@@ -576,7 +575,6 @@
                 display: flex !important;
             }
 
-            /* Pair Input + Console when Input tab is selected */
             .glass-container.split-active[data-active-tab="input"] #input-tab,
             .glass-container.split-active[data-active-tab="input"] #console-tab {
                 display: flex !important;
@@ -634,7 +632,6 @@
             border-radius: var(--radius-full);
         }
 
-        /* Shared container handles vertical resize so line numbers and editor never desync */
         .editor-body {
             position: relative;
             display: flex;
@@ -903,7 +900,7 @@
             }
             .preset-select {
                 flex: 1;
-                font-size: 16px; /* Prevents iOS Safari zoom on select focus */
+                font-size: 16px;
             }
             .editor-body,
             #stdin,
@@ -978,7 +975,7 @@
                         <span id="split-label">Split</span>
                     </button>
 
-                    <button id="sound-toggle-btn" class="icon-btn" title="Toggle Keystroke Sound Effects" aria-label="Toggle Sound">
+                    <button id="sound-toggle-btn" class="icon-btn" title="Toggle computer-access-granted.mp3 Sound" aria-label="Toggle Sound">
                         <svg id="icon-sound-on" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                             <path stroke-linecap="round" stroke-linejoin="round" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
                         </svg>
@@ -1127,6 +1124,7 @@ print("Hello, World! 🚀")</textarea>
                             <span id="exit-badge" class="hidden text-[11px] font-mono px-2 py-0.5 rounded-full"></span>
                         </div>
                         <div class="flex items-center gap-3">
+                            <button id="test-sound-btn" class="hover:underline text-xs" style="color: var(--color-primary-300);" title="Test computer-access-granted.mp3 playback">Test Audio</button>
                             <button id="copy-console-btn" class="hover:underline text-xs" style="color: var(--color-text-3);">Copy Output</button>
                             <button id="clear-console-btn" class="hover:underline text-xs" style="color: var(--color-text-3);">Clear</button>
                         </div>
@@ -1155,9 +1153,9 @@ print("Hello, World! 🚀")</textarea>
                         </p>
                     </div>
                     <div class="feature-card">
-                        <h3 class="font-bold text-base mb-1 brand-heading">⚡ Async & Non-Blocking Worker</h3>
+                        <h3 class="font-bold text-base mb-1 brand-heading">🔊 Smart Audio Engine</h3>
                         <p class="text-xs leading-relaxed" style="color: var(--text-muted);">
-                            Runs in a dedicated Web Worker with top-level <code>await</code> and automatic <code>asyncio.run()</code> rewriting. Infinite loops can be safely terminated anytime using the <strong>Stop Execution</strong> button.
+                            Plays <code>computer-access-granted.mp3</code> smoothly without rapid-reset clipping across both relative (<code>./</code>) and root (<code>/</code>) paths, with an automatic Web Audio synthesizer fallback.
                         </p>
                     </div>
                     <div class="feature-card sm:col-span-2 flex flex-wrap items-center justify-between gap-2">
@@ -1184,6 +1182,13 @@ print("Hello, World! 🚀")</textarea>
             </button>
         </div>
     </div>
+
+    <!-- Restored Audio Element with both relative (./) and root (/) path resolution -->
+    <audio id="typing-sound" preload="auto">
+        <source src="./computer-access-granted.mp3" type="audio/mpeg">
+        <source src="computer-access-granted.mp3" type="audio/mpeg">
+        <source src="/computer-access-granted.mp3" type="audio/mpeg">
+    </audio>
 
     <!-- Python side of the runner: executes user code, flushes input prompts, renders matplotlib plots, and handles async -->
     <script type="text/x-python" id="py-harness">
@@ -1220,7 +1225,7 @@ def _setup_matplotlib_hook():
                 fig.savefig(buf, format="png", bbox_inches="tight", dpi=130)
                 buf.seek(0)
                 b64 = base64.b64encode(buf.read()).decode("ascii")
-                js. sendPlot(b64)
+                js.sendPlot(b64)
             plt.close("all")
 
         plt.show = _custom_show
@@ -1441,17 +1446,52 @@ self.onmessage = async function (e) {
             const runInfo = document.getElementById('runtime-info');
             const statusDot = document.getElementById('status-dot');
             const splitToggleBtn = document.getElementById('split-toggle-btn');
+            const typingSound = document.getElementById('typing-sound');
 
             const RUN_LIMIT_MS = 30000;   // time allowed for the program itself
             const PREP_LIMIT_MS = 180000; // time allowed for downloading packages
 
             let soundEnabled = true;
+            let userInteracted = false;
             let audioCtx = null;
             let fontSizePx = 14;
 
-            // Zero-dependency Web Audio API keystroke click (no external MP3 404 errors)
-            function playKeySound() {
-                if (!soundEnabled) return;
+            /* ---------- Fixed Audio Playback Engine for computer-access-granted.mp3 ---------- */
+            typingSound.volume = 1.0;
+
+            // Silently unlock HTML5 Audio & WebAudio on the very first user gesture (mobile + desktop)
+            function unlockAudioOnGesture() {
+                if (userInteracted) return;
+                userInteracted = true;
+                try {
+                    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    if (audioCtx.state === 'suspended') audioCtx.resume();
+                } catch (_) {}
+
+                // Prime the <audio> element silently so subsequent .play() calls never get blocked
+                const wasPaused = typingSound.paused;
+                if (wasPaused) {
+                    typingSound.muted = true;
+                    const p = typingSound.play();
+                    if (p !== undefined) {
+                        p.then(() => {
+                            typingSound.pause();
+                            typingSound.currentTime = 0;
+                            typingSound.muted = false;
+                        }).catch(() => {
+                            typingSound.muted = false;
+                        });
+                    } else {
+                        typingSound.muted = false;
+                    }
+                }
+            }
+
+            ['pointerdown', 'touchstart', 'keydown', 'click'].forEach(evt => {
+                document.addEventListener(evt, unlockAudioOnGesture, { once: true, passive: true });
+            });
+
+            function playFallbackSynth() {
                 try {
                     if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                     if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -1459,14 +1499,41 @@ self.onmessage = async function (e) {
                     const gain = audioCtx.createGain();
                     osc.type = 'sine';
                     osc.frequency.setValueAtTime(540 + Math.random() * 120, audioCtx.currentTime);
-                    gain.gain.setValueAtTime(0.012, audioCtx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.0008, audioCtx.currentTime + 0.022);
+                    gain.gain.setValueAtTime(0.015, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.0008, audioCtx.currentTime + 0.025);
                     osc.connect(gain);
                     gain.connect(audioCtx.destination);
                     osc.start();
-                    osc.stop(audioCtx.currentTime + 0.022);
+                    osc.stop(audioCtx.currentTime + 0.025);
                 } catch (_) {}
             }
+
+            // Plays computer-access-granted.mp3 without cutting it off in the initial 30ms MP3 header
+            function playKeySound(forceRestart = false) {
+                if (!soundEnabled || !userInteracted) return;
+
+                if (forceRestart) {
+                    typingSound.currentTime = 0;
+                } else if (!typingSound.paused && !typingSound.ended) {
+                    // Already playing computer-access-granted.mp3; let it play smoothly instead of stuttering at 0.0s
+                    return;
+                } else {
+                    typingSound.currentTime = 0;
+                }
+
+                const playPromise = typingSound.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(() => {
+                        // Fallback to synthesized sound if computer-access-granted.mp3 is missing
+                        playFallbackSynth();
+                    });
+                }
+            }
+
+            document.getElementById('test-sound-btn').addEventListener('click', () => {
+                userInteracted = true;
+                playKeySound(true);
+            });
 
             setTimeout(() => {
                 loadingScreen.classList.add('fade-out');
@@ -1632,6 +1699,10 @@ self.onmessage = async function (e) {
             // Sound Toggle
             document.getElementById('sound-toggle-btn').addEventListener('click', () => {
                 soundEnabled = !soundEnabled;
+                if (!soundEnabled && !typingSound.paused) {
+                    typingSound.pause();
+                    typingSound.currentTime = 0;
+                }
                 document.getElementById('icon-sound-on').classList.toggle('hidden', !soundEnabled);
                 document.getElementById('icon-sound-off').classList.toggle('hidden', soundEnabled);
             });
@@ -1704,7 +1775,9 @@ self.onmessage = async function (e) {
                     backlog -= n;
                     if (!item.text) queue.shift();
                     appendText(item.stream, piece);
-                    if (!fast && piece.trim() !== '' && (++typedCount % 2 === 0)) playKeySound();
+                    if (piece.trim() !== '' && (fast || (++typedCount % 2 === 0))) {
+                        playKeySound(false);
+                    }
                     pumpTimer = setTimeout(step, fast ? 0 : 6 + Math.random() * 6);
                 };
                 step();
@@ -1857,6 +1930,8 @@ self.onmessage = async function (e) {
             }
 
             runBtn.addEventListener('click', () => {
+                userInteracted = true;
+
                 if (btnState === 'failed') {
                     clearConsole();
                     enqueue('meta', '> Retrying...\n');
@@ -1869,8 +1944,10 @@ self.onmessage = async function (e) {
                 }
                 if (btnState !== 'ready') return;
 
+                // Trigger computer-access-granted.mp3 directly inside the click handler so mobile/desktop browsers allow it 100% of the time
+                playKeySound(true);
+
                 clearConsole();
-                // Keep current tab if desktop split-view is active and showing code or input
                 const isSplitDesktop = window.innerWidth >= 1024 && mainContent.classList.contains('split-active');
                 const currentTab = mainContent.getAttribute('data-active-tab');
                 if (!isSplitDesktop || currentTab === 'about') {
