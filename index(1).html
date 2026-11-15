@@ -1,0 +1,2420 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="color-scheme" content="light dark">
+    <meta name="theme-color" content="#eef4fe" id="meta-theme">
+    <meta name="description" content="A fast, private Python compiler that runs entirely in your browser with Pyodide (WebAssembly).">
+    <title>Python Compiler</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='14' fill='%234d43fe'/%3E%3Cpath d='M18 16.5 26 24l-8 7.5' fill='none' stroke='white' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M29 32h7' stroke='white' stroke-width='4' stroke-linecap='round'/%3E%3C/svg%3E">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Anek+Latin:wght@400;500;600;700;800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+    <!-- Apply the saved theme before first paint (no flash) -->
+    <script>
+        try {
+            var t = localStorage.getItem('pyc:theme');
+            if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        } catch (e) { /* storage blocked: stay on light */ }
+    </script>
+
+    <style>
+        /* =====================================================================
+           1. DESIGN TOKENS  (from super_money.css — duplicates & invalid lines cleaned)
+           ===================================================================== */
+        :root {
+            /* Brand */
+            --color-primary: #4d43fe;
+            --color-brand: #4d43fe;
+            --color-action: #4d43fe;
+
+            --color-primary-50: #d7ecff;
+            --color-primary-100: #c9dfff;
+            --color-primary-200: #b5cbff;
+            --color-primary-300: #9aadff;
+            --color-primary-400: #7985ff;
+            --color-primary-500: #5f60ff;
+            --color-primary-600: #4d43fe;
+            --color-primary-700: #3d33d3;
+            --color-primary-800: #3124b4;
+            --color-primary-900: #271898;
+            --color-primary-950: #14055f;
+
+            --color-neutral-50: #f5f5f5;
+            --color-neutral-100: #eaeaea;
+            --color-neutral-200: #d9d9d9;
+            --color-neutral-300: #c0c0c0;
+            --color-neutral-400: #9f9f9f;
+            --color-neutral-500: #828282;
+            --color-neutral-600: #6c6c6c;
+            --color-neutral-700: #575757;
+            --color-neutral-800: #464646;
+            --color-neutral-900: #393939;
+            --color-neutral-950: #1b1b1b;
+
+            /* Named neutrals (were colliding with the ramp above) */
+            --color-line: #e5e7eb;
+            --color-ink: #1b1b1b;
+            --color-white: #ffffff;
+            --color-black: #000000;
+            --color-slate: #adacbe;
+            --color-mist: #eef4fe;
+
+            --color-bg: #ffffff;
+            --color-bg-1: #1b1b1b;
+            --color-bg-2: #4d43fe;
+            --color-bg-3: #e0eaff;
+
+            --color-text: #ffffff;
+            --color-text-1: #1b1b1b;
+            --color-text-2: #4d43fe;
+            --color-text-3: #adacbe;
+            --color-text-4: #eaecf0;
+
+            /* Status (the source file had unusable "[object Object]" values) */
+            --success: #12a150;
+            --warning: #e08a00;
+            --error: #e5484d;
+            --info: #4d43fe;
+
+            /* Type */
+            --font-sans: 'Anek Latin', 'AnekLatin', system-ui, -apple-system, 'Segoe UI', sans-serif;
+            --font-font-1: 'Figtree', system-ui, sans-serif;
+            --font-mono: 'JetBrains Mono', 'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+            --font-size-h1: 130px;
+            --font-size-title-4: 32px;
+            --font-size-title-5: 28px;
+            --font-size-title-6: 24px;
+            --font-size-title-7: 22px;
+            --font-size-h3: 20px;
+            --font-size-title-8: 16px;
+            --font-size-body: 14px;
+
+            /* Layout */
+            --container-width: 1280px;
+            --topbar-h: 66px;
+            --pad: clamp(12px, 2.2vw, 28px);
+
+            /* Spacing */
+            --spacing-4: 4px;
+            --spacing-12: 12px;
+            --spacing-16: 16px;
+            --spacing-20: 20px;
+            --spacing-24: 24px;
+            --spacing-32: 32px;
+            --spacing-36: 36px;
+            --spacing-40: 40px;
+            --spacing-48: 48px;
+
+            /* Radius */
+            --radius-sm: 6px;
+            --radius-md: 10px;
+            --radius-lg: 16px;
+            --radius-xl: 20px;
+            --radius-full: 9999px;
+
+            /* Shadows */
+            --shadow-xs: rgba(74, 58, 255, 0.1) 0px 6px 16px 0px;
+            --shadow-sm: rgba(41, 30, 255, 0.45) 0px 8px 28px 0px;
+
+            /* ---- Semantic layer: LIGHT (default) ---- */
+            --bg: #eef4fe;
+            --surface: #ffffff;
+            --surface-2: #f5f8ff;
+            --panel-bg: rgba(255, 255, 255, 0.78);
+            --glass: rgba(255, 255, 255, 0.72);
+            --border: #e2e6f3;
+            --border-strong: #cfd6ee;
+            --fg: #1b1b1b;
+            --fg-muted: #5c5b72;
+            --fg-subtle: #8f8ea6;
+            --accent: #4d43fe;
+            --accent-soft: #e0eaff;
+            --accent-ink: #3d33d3;
+            --focus: rgba(77, 67, 254, 0.28);
+            --grid-dot: rgba(77, 67, 254, 0.16);
+            --orb-opacity: 0.5;
+            --shadow-card: 0 1px 0 rgba(27, 27, 27, 0.03), rgba(74, 58, 255, 0.1) 0px 6px 16px 0px, 0 24px 60px -24px rgba(61, 51, 211, 0.25);
+
+            /* Code surfaces (raised, ink) */
+            --code-bg: #1b1b1b;
+            --code-fg: #eaecf0;
+            --code-muted: #7f7d96;
+            --code-gutter: #5d5c72;
+            --code-sel: rgba(95, 96, 255, 0.42);
+            --code-line: rgba(154, 173, 255, 0.07);
+
+            color-scheme: light;
+        }
+
+        :root[data-theme="dark"] {
+            --bg: #0b0b10;
+            --surface: #14141b;
+            --surface-2: #1a1a23;
+            --panel-bg: rgba(20, 20, 27, 0.74);
+            --glass: rgba(14, 14, 20, 0.72);
+            --border: #2a2a38;
+            --border-strong: #3a3a4e;
+            --fg: #f5f5f7;
+            --fg-muted: #adacbe;
+            --fg-subtle: #7f7d96;
+            --accent-soft: rgba(95, 96, 255, 0.18);
+            --accent-ink: #9aadff;
+            --focus: rgba(95, 96, 255, 0.4);
+            --grid-dot: rgba(255, 255, 255, 0.07);
+            --orb-opacity: 0.22;
+            --shadow-card: 0 1px 0 rgba(255, 255, 255, 0.04), 0 24px 60px -20px rgba(0, 0, 0, 0.6);
+            --code-bg: #0f0f15;
+            --code-gutter: #4c4b60;
+            color-scheme: dark;
+        }
+
+        /* =====================================================================
+           2. BASE
+           ===================================================================== */
+        *, *::before, *::after { box-sizing: border-box; }
+
+        html {
+            background: var(--bg);
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: var(--font-sans);
+            font-size: var(--font-size-body);
+            line-height: 1.5;
+            color: var(--fg);
+            background: transparent;
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+
+        button, select, textarea { font-family: inherit; color: inherit; }
+        button { cursor: pointer; }
+        h1, h2, h3, p { margin: 0; }
+
+        ::selection { background: var(--color-primary-200); color: var(--color-primary-950); }
+
+        :focus-visible { outline: 2px solid var(--color-primary-500); outline-offset: 2px; }
+
+        * { scrollbar-width: thin; scrollbar-color: rgba(127, 125, 150, 0.45) transparent; }
+        *::-webkit-scrollbar { width: 10px; height: 10px; }
+        *::-webkit-scrollbar-thumb { background: rgba(127, 125, 150, 0.4); border-radius: 10px; border: 2px solid transparent; background-clip: content-box; }
+        *::-webkit-scrollbar-thumb:hover { background: rgba(127, 125, 150, 0.7); background-clip: content-box; border: 2px solid transparent; }
+
+        .sr-only { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+        .sprite { position: absolute; width: 0; height: 0; overflow: hidden; }
+
+        .ic { width: 1.15em; height: 1.15em; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+        .ic-solid { fill: currentColor; }
+        .mark { display: block; }
+
+        kbd {
+            font: 600 11px/1 var(--font-mono);
+            padding: 3px 6px;
+            border-radius: 6px;
+            border: 1px solid var(--border-strong);
+            border-bottom-width: 2px;
+            background: var(--surface-2);
+            color: var(--fg-muted);
+        }
+
+        /* Animated background */
+        .bg { position: fixed; inset: 0; z-index: -1; overflow: hidden; background: var(--bg); pointer-events: none; }
+        .bg::before {
+            content: ""; position: absolute; inset: 0;
+            background-image: radial-gradient(var(--grid-dot) 1px, transparent 1.2px);
+            background-size: 26px 26px;
+            -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 0%, transparent 75%);
+            mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 0%, transparent 75%);
+        }
+        .orb { position: absolute; border-radius: 50%; filter: blur(90px); opacity: var(--orb-opacity); animation: drift 24s ease-in-out infinite alternate; will-change: transform; }
+        .orb.o1 { width: 540px; height: 540px; left: -140px; top: -180px; background: var(--color-primary-300); }
+        .orb.o2 { width: 480px; height: 480px; right: -120px; top: 18%; background: var(--color-primary-100); animation-delay: -9s; }
+        .orb.o3 { width: 440px; height: 440px; left: 28%; bottom: -220px; background: var(--color-primary-500); opacity: calc(var(--orb-opacity) * 0.55); animation-delay: -15s; }
+
+        /* Theme crossfade */
+        html.theme-anim *, html.theme-anim *::before, html.theme-anim *::after {
+            transition: background-color .35s ease, color .35s ease, border-color .35s ease, box-shadow .35s ease !important;
+        }
+
+        /* =====================================================================
+           3. SPLASH
+           ===================================================================== */
+        .splash {
+            position: fixed; inset: 0; z-index: 300;
+            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+            background:
+                radial-gradient(60% 50% at 50% 38%, rgba(95, 96, 255, 0.28), transparent 70%),
+                var(--bg);
+            transition: opacity .8s ease, visibility .8s ease, transform .8s ease;
+        }
+        .splash.hide { opacity: 0; visibility: hidden; transform: scale(1.04); }
+        .splash-logo { position: relative; width: 96px; height: 96px; display: grid; place-items: center; }
+        .splash-logo .mark { width: 88px; height: 88px; filter: drop-shadow(0 12px 28px rgba(77, 67, 254, 0.5)); animation: logoPop .9s cubic-bezier(.2, .9, .3, 1.3) both, floaty 3.2s ease-in-out .9s infinite; }
+        .splash-logo i { position: absolute; inset: 0; border-radius: 30px; border: 2px solid var(--color-primary-400); opacity: 0; animation: ring 2.2s ease-out infinite; }
+        .splash-logo i:nth-child(2) { animation-delay: .7s; }
+        .splash-logo i:nth-child(3) { animation-delay: 1.4s; }
+        .splash-title { font-size: clamp(26px, 5vw, var(--font-size-title-4)); font-weight: 800; letter-spacing: -0.02em; display: flex; gap: .28em; flex-wrap: wrap; justify-content: center; }
+        .splash-title span { display: inline-block; opacity: 0; animation: rise .7s cubic-bezier(.2, .8, .2, 1) forwards; }
+        .splash-title span:nth-child(1) { animation-delay: .25s; }
+        .splash-title span:nth-child(2) { animation-delay: .4s; color: var(--accent-ink); }
+        .splash-sub { color: var(--fg-muted); font-size: 14px; opacity: 0; animation: rise .7s .6s forwards; }
+        .splash-bar { width: min(220px, 60vw); height: 4px; border-radius: 4px; background: var(--border); overflow: hidden; }
+        .splash-bar span { display: block; width: 40%; height: 100%; border-radius: 4px; background: linear-gradient(90deg, transparent, var(--color-primary-500), transparent); animation: shimmer 1.2s ease-in-out infinite; }
+
+        /* Entrance choreography */
+        .reveal { opacity: 0; transform: translateY(16px); }
+        body.ready .reveal { animation: rise .75s cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(var(--d, 0) * 110ms); }
+
+        /* =====================================================================
+           4. TOP BAR
+           ===================================================================== */
+        .topbar {
+            position: sticky; top: 0; z-index: 40;
+            height: var(--topbar-h);
+            display: flex; align-items: center; gap: var(--spacing-16);
+            padding: 0 var(--pad);
+            background: var(--glass);
+            -webkit-backdrop-filter: saturate(1.5) blur(18px);
+            backdrop-filter: saturate(1.5) blur(18px);
+            border-bottom: 1px solid var(--border);
+        }
+        .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .brand .mark { width: 40px; height: 40px; border-radius: 12px; box-shadow: var(--shadow-sm); flex: none; }
+        .brand h1 { font-size: var(--font-size-title-7); font-weight: 800; letter-spacing: -0.02em; line-height: 1.05; white-space: nowrap; }
+        .brand h1 b { color: var(--accent-ink); font-weight: 800; }
+        .brand small { display: block; margin-top: 2px; font-size: 12px; font-weight: 500; color: var(--fg-muted); white-space: nowrap; }
+
+        .topbar-spacer { flex: 1; }
+
+        .pill {
+            display: inline-flex; align-items: center; gap: 9px;
+            padding: 7px 14px; border-radius: var(--radius-full);
+            background: var(--surface-2); border: 1px solid var(--border);
+            font: 600 12.5px var(--font-sans); color: var(--fg-muted);
+            white-space: nowrap;
+            --dot-rgb: 224, 138, 0;
+            transition: border-color .3s, background .3s, color .3s;
+        }
+        .pill .dot { width: 8px; height: 8px; border-radius: 50%; background: rgb(var(--dot-rgb)); animation: ping 1.5s infinite; flex: none; }
+        .pill-text { max-width: 220px; overflow: hidden; text-overflow: ellipsis; }
+        .pill[data-state="ready"] { --dot-rgb: 18, 161, 80; color: var(--fg); }
+        .pill[data-state="ready"] .dot { animation: none; box-shadow: 0 0 0 3px rgba(18, 161, 80, .18); }
+        .pill[data-state="running"] { --dot-rgb: 95, 96, 255; color: var(--accent-ink); border-color: var(--color-primary-300); background: var(--accent-soft); }
+        .pill[data-state="failed"] { --dot-rgb: 229, 72, 77; color: var(--error); }
+        .pill[data-state="failed"] .dot { animation: none; }
+
+        .icon-btn {
+            width: 40px; height: 40px; display: grid; place-items: center; flex: none;
+            border-radius: 12px; border: 1px solid var(--border); background: var(--surface); color: var(--fg);
+            font-size: 18px;
+            transition: transform .2s, background .2s, color .2s, border-color .2s, box-shadow .2s;
+        }
+        .icon-btn:hover { transform: translateY(-2px); background: var(--accent-soft); color: var(--accent-ink); border-color: var(--color-primary-300); box-shadow: var(--shadow-xs); }
+        .icon-btn:active { transform: translateY(0) scale(.95); }
+        .icon-btn .swap { display: none; }
+        .icon-btn .swap.on { display: block; animation: spinIn .45s cubic-bezier(.2, .9, .3, 1.3); }
+
+        /* Progress strip under the topbar */
+        .progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; overflow: hidden; opacity: 0; transition: opacity .3s; pointer-events: none; }
+        .progress::after { content: ""; position: absolute; top: 0; bottom: 0; width: 40%; background: linear-gradient(90deg, transparent, var(--color-primary-500), var(--color-primary-300), transparent); animation: shimmer 1.1s ease-in-out infinite; }
+        body[data-runtime="loading"] .progress, body[data-runtime="running"] .progress { opacity: 1; }
+
+        /* =====================================================================
+           5. RUN BUTTON
+           ===================================================================== */
+        .btn-run {
+            position: relative; overflow: hidden; flex: none;
+            display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+            height: 42px; padding: 0 16px 0 14px;
+            border: 0; border-radius: var(--radius-full);
+            color: #fff; font: 700 14px var(--font-sans); letter-spacing: .01em;
+            background: linear-gradient(135deg, #6a6cff 0%, #4d43fe 55%, #3d33d3 100%);
+            box-shadow: var(--shadow-sm);
+            transition: transform .2s, box-shadow .25s, filter .2s, background .3s;
+            animation: runPulse 2.8s ease-in-out infinite;
+        }
+        .btn-run:hover:not(:disabled) { transform: translateY(-2px); box-shadow: rgba(41, 30, 255, 0.6) 0 12px 32px 0; }
+        .btn-run:active:not(:disabled) { transform: translateY(0) scale(.97); }
+        .btn-run .ic { font-size: 17px; }
+        .btn-run .i-stop, .btn-run .spinner { display: none; }
+        .btn-run .run-kbd { background: rgba(255, 255, 255, .18); border-color: rgba(255, 255, 255, .28); color: #fff; padding: 3px 6px; }
+        .btn-run[data-state="loading"] { background: linear-gradient(135deg, #9aadff, #7985ff); box-shadow: none; cursor: progress; animation: none; }
+        .btn-run[data-state="loading"] .i-play { display: none; }
+        .btn-run[data-state="loading"] .spinner { display: inline-block; }
+        .btn-run[data-state="loading"] .run-kbd { display: none; }
+        .btn-run[data-state="running"] { background: linear-gradient(135deg, #f26d73, #e5484d 55%, #c9323a); box-shadow: rgba(229, 72, 77, .45) 0 8px 28px 0; animation: none; }
+        .btn-run[data-state="running"] .i-play { display: none; }
+        .btn-run[data-state="running"] .i-stop { display: block; }
+        .btn-run[data-state="running"] .run-kbd { display: none; }
+        .btn-run[data-state="failed"] { background: linear-gradient(135deg, #6a6cff, #4d43fe); animation: none; }
+        .btn-run[data-state="failed"] .run-kbd { display: none; }
+
+        .spinner { width: 16px; height: 16px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .7s linear infinite; }
+        .ripple { position: absolute; border-radius: 50%; background: rgba(255, 255, 255, .5); transform: scale(0); animation: ripple .65s ease-out forwards; pointer-events: none; }
+
+        .fab { display: none; position: fixed; z-index: 50; right: max(16px, env(safe-area-inset-right)); bottom: max(16px, env(safe-area-inset-bottom)); height: 54px; padding: 0 22px 0 18px; font-size: 15px; }
+        .fab .run-kbd { display: none !important; }
+
+        /* =====================================================================
+           6. WORKSPACE & PANELS
+           ===================================================================== */
+        .workspace {
+            max-width: 1480px; margin: 0 auto;
+            padding: var(--pad);
+            display: grid; gap: var(--pad);
+            grid-template-columns: minmax(0, 1.12fr) minmax(0, 1fr);
+            grid-template-rows: minmax(0, 1fr);
+            height: calc(100vh - var(--topbar-h));
+            height: calc(100dvh - var(--topbar-h));
+        }
+
+        .panel {
+            display: flex; flex-direction: column; min-width: 0; min-height: 0;
+            background: var(--panel-bg);
+            -webkit-backdrop-filter: blur(18px) saturate(1.3);
+            backdrop-filter: blur(18px) saturate(1.3);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-card);
+            overflow: hidden;
+            transition: border-color .25s, box-shadow .25s;
+        }
+        .panel-editor:focus-within { border-color: var(--color-primary-400); box-shadow: 0 0 0 4px var(--focus), var(--shadow-card); }
+
+        .panel-head {
+            display: flex; align-items: center; justify-content: space-between; gap: 12px;
+            min-height: 54px; padding: 8px 12px 8px 14px;
+            border-bottom: 1px solid var(--border);
+            overflow-x: auto; overflow-y: hidden;
+            scrollbar-width: none;
+        }
+        .panel-head::-webkit-scrollbar { display: none; }
+
+        .file-tab {
+            display: inline-flex; align-items: center; gap: 8px; flex: none;
+            padding: 7px 12px; border-radius: 10px;
+            background: var(--accent-soft); color: var(--accent-ink);
+            font: 600 12.5px var(--font-mono);
+        }
+        .saved { font: 500 11.5px var(--font-sans); color: var(--fg-muted); opacity: 0; transition: opacity .4s; display: inline-flex; align-items: center; gap: 4px; }
+        .saved.show { opacity: 1; }
+        .saved .ic { color: var(--success); font-size: 12px; }
+
+        .head-actions { display: flex; align-items: center; gap: 4px; flex: none; }
+        .sep { width: 1px; height: 20px; background: var(--border); margin: 0 6px; flex: none; }
+
+        .tool {
+            display: inline-flex; align-items: center; gap: 7px; flex: none;
+            height: 34px; padding: 0 11px;
+            border: 1px solid transparent; border-radius: 10px; background: transparent;
+            color: var(--fg-muted); font: 600 13px var(--font-sans);
+            transition: background .2s, color .2s, transform .15s, border-color .2s;
+        }
+        .tool.icon { width: 34px; padding: 0; justify-content: center; font-size: 16px; }
+        .tool:hover { background: var(--accent-soft); color: var(--accent-ink); }
+        .tool:active { transform: scale(.94); }
+        .tool .chev { font-size: 14px; transition: transform .25s; }
+        .tool[aria-expanded="true"] { background: var(--accent-soft); color: var(--accent-ink); }
+        .tool[aria-expanded="true"] .chev { transform: rotate(180deg); }
+        .tool.done { color: var(--success); }
+
+        .stepper { display: inline-flex; align-items: center; gap: 2px; padding: 2px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); }
+        .stepper button { width: 28px; height: 28px; display: grid; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--fg-muted); font-size: 14px; transition: background .2s, color .2s; }
+        .stepper button:hover { background: var(--accent-soft); color: var(--accent-ink); }
+        .stepper span { min-width: 26px; text-align: center; font: 600 12px var(--font-mono); color: var(--fg); }
+
+        /* ---- Editor ---- */
+        .editor-body {
+            --code-size: var(--fs, 14px);
+            --code-lh: calc(var(--code-size) * 1.7);
+            --code-pad-y: 16px;
+            --code-pad-x: 18px;
+            position: relative; flex: 1; min-height: 0; display: flex;
+            background: var(--code-bg); color: var(--code-fg);
+        }
+        .gutter {
+            flex: none; overflow: hidden; user-select: none; -webkit-user-select: none;
+            width: calc(var(--digits, 2) * 1ch + 38px);
+            padding-top: var(--code-pad-y);
+            text-align: right; color: var(--code-gutter);
+            font-family: var(--font-mono); font-size: var(--code-size); line-height: var(--code-lh);
+            border-right: 1px solid rgba(255, 255, 255, .05);
+        }
+        .gutter-inner { padding-right: 14px; will-change: transform; }
+        .gutter i { display: block; height: var(--code-lh); font-style: normal; transition: color .15s; }
+        .gutter i.on { color: var(--color-primary-100); }
+
+        .code-area { position: relative; flex: 1; min-width: 0; overflow: hidden; }
+        .active-line { position: absolute; left: 0; right: 0; top: 0; height: var(--code-lh); background: var(--code-line); border-left: 2px solid var(--color-primary-400); opacity: 0; transition: opacity .2s; pointer-events: none; will-change: transform; }
+        .active-line.on { opacity: 1; }
+
+        .hl { position: absolute; inset: 0; margin: 0; overflow: hidden; pointer-events: none; }
+        .hl code, #editor {
+            font-family: var(--font-mono); font-size: var(--code-size); font-weight: 400; line-height: var(--code-lh);
+            letter-spacing: 0; word-spacing: 0; font-variant-ligatures: none; font-feature-settings: "liga" 0, "calt" 0;
+            tab-size: 4; -moz-tab-size: 4; white-space: pre; word-wrap: normal; overflow-wrap: normal;
+        }
+        .hl code { display: block; padding: var(--code-pad-y) var(--code-pad-x); will-change: transform; color: var(--code-fg); }
+
+        #editor {
+            position: absolute; inset: 0; z-index: 2; width: 100%; height: 100%;
+            margin: 0; border: 0; outline: 0; resize: none; overflow: auto;
+            padding: var(--code-pad-y) var(--code-pad-x);
+            background: transparent; color: transparent; -webkit-text-fill-color: transparent;
+            caret-color: #fff;
+        }
+        #editor::selection { background: var(--code-sel); color: transparent; -webkit-text-fill-color: transparent; }
+
+        .drop-hint { position: absolute; inset: 10px; z-index: 5; display: none; place-items: center; border: 2px dashed var(--color-primary-400); border-radius: 14px; background: rgba(77, 67, 254, .18); color: #fff; font-weight: 700; font-size: 16px; backdrop-filter: blur(4px); pointer-events: none; }
+        .drop-hint.on { display: grid; animation: pop .25s ease both; }
+
+        /* Syntax colours */
+        .tk-k { color: #9aadff; font-weight: 500; }
+        .tk-k2 { color: #ff9d7a; }
+        .tk-b { color: #6fd6ff; }
+        .tk-s { color: #8ee6b0; }
+        .tk-n { color: #ffb86b; }
+        .tk-c { color: #7f7d96; font-style: italic; }
+        .tk-d { color: #ff8fb8; }
+        .tk-f { color: #ffe08a; }
+        .tk-fc { color: #c9dfff; }
+        .tk-self { color: #c4a7ff; font-style: italic; }
+
+        /* ---- Status bars ---- */
+        .statusbar {
+            display: flex; align-items: center; gap: 14px; flex: none;
+            min-height: 38px; padding: 0 14px;
+            border-top: 1px solid var(--border);
+            font-size: 12px; font-weight: 500; color: var(--fg-muted);
+            font-variant-numeric: tabular-nums; white-space: nowrap; overflow-x: auto; scrollbar-width: none;
+        }
+        .statusbar::-webkit-scrollbar { display: none; }
+        .statusbar .grow { flex: 1; }
+        .statusbar .item { display: inline-flex; align-items: center; gap: 6px; }
+
+        .badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: var(--radius-full); font-size: 11.5px; font-weight: 700; background: var(--surface-2); color: var(--fg-muted); border: 1px solid var(--border); }
+        .badge.ok { background: rgba(18, 161, 80, .12); color: var(--success); border-color: rgba(18, 161, 80, .3); animation: pop .4s cubic-bezier(.2, .9, .3, 1.3); }
+        .badge.err { background: rgba(229, 72, 77, .12); color: var(--error); border-color: rgba(229, 72, 77, .3); animation: pop .4s cubic-bezier(.2, .9, .3, 1.3); }
+        .badge.run { background: var(--accent-soft); color: var(--accent-ink); border-color: var(--color-primary-300); }
+        .badge .spinner { width: 10px; height: 10px; border-width: 2px; }
+
+        .select { appearance: none; -webkit-appearance: none; padding: 4px 24px 4px 9px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%238f8ea6' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E") no-repeat right 8px center; color: var(--fg); font: 600 12px var(--font-sans); cursor: pointer; }
+
+        /* ---- Output tabs ---- */
+        .tabs { position: relative; display: inline-flex; gap: 2px; padding: 4px; border-radius: 14px; background: var(--surface-2); border: 1px solid var(--border); flex: none; }
+        .tab { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 0 13px; border: 0; border-radius: 10px; background: transparent; color: var(--fg-muted); font: 600 13px var(--font-sans); transition: color .2s; }
+        .tab:hover { color: var(--fg); }
+        .tab[aria-selected="true"] { color: var(--accent-ink); }
+        .tab .ic { font-size: 15px; }
+        .tab-ink { position: absolute; z-index: 0; top: 4px; bottom: 4px; left: 0; width: 0; border-radius: 10px; background: var(--surface); box-shadow: 0 0 0 1px var(--border), var(--shadow-xs); transition: transform .38s cubic-bezier(.4, 0, .2, 1), width .38s cubic-bezier(.4, 0, .2, 1); }
+        .count { min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; display: inline-grid; place-items: center; background: var(--color-primary); color: #fff; font: 700 10.5px var(--font-sans); animation: pop .35s cubic-bezier(.2, .9, .3, 1.4); }
+        .count[hidden] { display: none; }
+
+        .panes { position: relative; flex: 1; min-height: 0; }
+        .pane { position: absolute; inset: 0; display: flex; flex-direction: column; min-height: 0; }
+        .pane[hidden] { display: none; }
+        .pane:not([hidden]) { animation: paneIn .3s ease both; }
+
+        .console {
+            flex: 1; min-height: 0; overflow: auto; padding: 16px 18px;
+            background: var(--code-bg); color: var(--code-fg);
+            font-family: var(--font-mono); font-size: 13.5px; line-height: 1.65; font-variant-ligatures: none;
+            white-space: pre-wrap; word-break: break-word;
+        }
+        .out-out { color: #eaecf0; }
+        .out-err { color: #ff8b8b; }
+        .out-in { color: #9aadff; }
+        .out-meta { color: #7f7d96; font-style: italic; }
+        .cursor { color: var(--color-primary-300); font-weight: 700; animation: blink .8s step-end infinite; }
+
+        .empty { position: absolute; inset: 0; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 24px; text-align: center; color: var(--code-muted); pointer-events: none; }
+        .empty .ic { font-size: 34px; color: var(--color-primary-400); opacity: .9; animation: floaty 3.4s ease-in-out infinite; }
+        .empty strong { color: var(--code-fg); font-size: 15px; font-weight: 700; }
+        .empty span { font-size: 13px; max-width: 30ch; }
+        .pane.is-empty .empty { display: flex; }
+        .pane-plots .empty { background: var(--surface-2); color: var(--fg-muted); }
+        .pane-plots .empty strong { color: var(--fg); }
+
+        .hint { display: flex; align-items: flex-start; gap: 10px; padding: 11px 16px; background: var(--accent-soft); color: var(--accent-ink); font-size: 13px; font-weight: 500; border-bottom: 1px solid var(--border); }
+        .hint .ic { margin-top: 2px; }
+        #stdin {
+            flex: 1; min-height: 0; width: 100%; margin: 0; border: 0; outline: 0; resize: none; padding: 16px 18px;
+            background: var(--code-bg); color: var(--code-fg); caret-color: #fff;
+            font-family: var(--font-mono); font-size: 14px; line-height: 1.7; tab-size: 4; white-space: pre; overflow: auto;
+        }
+        #stdin::placeholder { color: var(--code-muted); white-space: pre-wrap; }
+        #stdin::selection { background: var(--code-sel); }
+
+        .plots { flex: 1; min-height: 0; overflow: auto; padding: 16px; background: var(--surface-2); display: grid; gap: 16px; align-content: start; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); }
+        .plot { margin: 0; border-radius: 16px; overflow: hidden; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-xs); animation: rise .5s cubic-bezier(.2, .8, .2, 1) both; }
+        .plot img { display: block; width: 100%; height: auto; background: #fff; }
+        .plot figcaption { display: flex; align-items: center; justify-content: space-between; padding: 8px 8px 8px 14px; font-weight: 600; font-size: 12.5px; color: var(--fg-muted); border-top: 1px solid var(--border); }
+
+        /* ---- Mobile view switch ---- */
+        .view-switch { display: none; padding: 4px; gap: 4px; border-radius: 16px; background: var(--glass); border: 1px solid var(--border); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); }
+        .vs-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 42px; border: 0; border-radius: 12px; background: transparent; color: var(--fg-muted); font: 700 14px var(--font-sans); transition: background .25s, color .25s, box-shadow .25s; }
+        .vs-btn[aria-selected="true"] { background: var(--surface); color: var(--accent-ink); box-shadow: 0 0 0 1px var(--border), var(--shadow-xs); }
+
+        /* =====================================================================
+           7. TEMPLATES, TOASTS, DIALOG
+           ===================================================================== */
+        /* ---- Quick-pick strip (under the editor toolbar) ---- */
+        .tpl-strip { display: flex; align-items: center; gap: 10px; flex: none; padding: 8px 12px 8px 14px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+        .strip-label { display: inline-flex; align-items: center; gap: 7px; flex: none; font: 700 11.5px var(--font-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--accent-ink); }
+        .strip-label .ic { font-size: 15px; }
+        .strip-items {
+            flex: 1; min-width: 0; display: flex; gap: 8px; padding: 3px 2px; overflow-x: auto; scrollbar-width: none;
+            -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 26px), transparent);
+            mask-image: linear-gradient(90deg, #000 calc(100% - 26px), transparent);
+        }
+        .strip-items::-webkit-scrollbar { display: none; }
+
+        .chip {
+            display: inline-flex; align-items: center; gap: 7px; flex: none; height: 30px; padding: 0 12px;
+            border: 1px solid var(--border); border-radius: var(--radius-full); background: var(--surface); color: var(--fg);
+            font: 600 12.5px var(--font-sans); white-space: nowrap;
+            transition: transform .2s, background .2s, border-color .2s, color .2s, box-shadow .2s;
+        }
+        .chip .ic { font-size: 14px; color: var(--accent-ink); }
+        .chip:hover { transform: translateY(-2px); background: var(--accent-soft); border-color: var(--color-primary-300); box-shadow: var(--shadow-xs); }
+        .chip:active { transform: scale(.96); }
+        .chip-all { background: var(--color-primary); border-color: transparent; color: #fff; box-shadow: var(--shadow-xs); padding-right: 10px; }
+        .chip-all .ic { color: #fff; }
+        .chip-all:hover { background: var(--color-primary-700); border-color: transparent; color: #fff; }
+        .chip-all .n { padding: 1px 7px; border-radius: 9px; background: rgba(255, 255, 255, .22); font: 700 11px var(--font-mono); }
+
+        /* ---- Gallery dialog ---- */
+        dialog.modal.tpl { width: min(1160px, calc(100vw - 28px)); height: min(780px, calc(100dvh - 28px)); max-height: none; overflow: hidden; }
+        dialog.modal.tpl[open] { display: flex; flex-direction: column; }
+
+        .tpl-head { display: flex; align-items: center; gap: 12px; flex: none; flex-wrap: wrap; padding: 18px 20px 12px; }
+        .tpl-head .ttl { display: flex; align-items: center; gap: 12px; min-width: 0; }
+        .tile-lg { width: 46px; height: 46px; flex: none; display: grid; place-items: center; border-radius: 15px; color: #fff; font-size: 22px; background: linear-gradient(135deg, #7985ff, #4d43fe 60%, #3d33d3); box-shadow: var(--shadow-sm); }
+        .tpl-head h2 { font-size: var(--font-size-title-6); font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+        .tpl-head p { font-size: 12.5px; font-weight: 500; color: var(--fg-muted); font-variant-numeric: tabular-nums; }
+        .tpl-search { position: relative; display: block; flex: 1; min-width: 200px; max-width: 440px; margin-left: auto; }
+        .tpl-search > .ic { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); font-size: 16px; color: var(--fg-subtle); pointer-events: none; }
+        .tpl-search input {
+            width: 100%; height: 42px; padding: 0 12px 0 38px; border: 1px solid var(--border); border-radius: 14px;
+            background: var(--surface-2); color: var(--fg); font: 500 14px var(--font-sans); outline: none;
+            transition: border-color .2s, box-shadow .2s, background .2s;
+        }
+        .tpl-search input::placeholder { color: var(--fg-subtle); }
+        .tpl-search input:focus { border-color: var(--color-primary-400); background: var(--surface); box-shadow: 0 0 0 4px var(--focus); }
+        .tpl-search kbd { position: absolute; right: 11px; top: 50%; transform: translateY(-50%); pointer-events: none; }
+        .tpl-search input:focus ~ kbd, .tpl-search input:not(:placeholder-shown) ~ kbd { display: none; }
+
+        .tpl-cats { display: flex; gap: 8px; flex: none; padding: 0 20px 14px; overflow-x: auto; scrollbar-width: none; }
+        .tpl-cats::-webkit-scrollbar { display: none; }
+        .cat {
+            display: inline-flex; align-items: center; gap: 7px; flex: none; height: 34px; padding: 0 8px 0 12px;
+            border: 1px solid var(--border); border-radius: var(--radius-full); background: var(--surface); color: var(--fg-muted);
+            font: 600 13px var(--font-sans); transition: background .2s, color .2s, border-color .2s, box-shadow .2s, opacity .2s, transform .15s;
+        }
+        .cat .ic { font-size: 15px; }
+        .cat .n { min-width: 22px; text-align: center; padding: 1px 6px; border-radius: 9px; background: var(--surface-2); color: var(--fg-subtle); font: 600 11px var(--font-mono); }
+        .cat:hover { color: var(--fg); border-color: var(--color-primary-300); }
+        .cat:active { transform: scale(.96); }
+        .cat[aria-pressed="true"] { background: var(--color-primary); border-color: var(--color-primary); color: #fff; box-shadow: var(--shadow-xs); }
+        .cat[aria-pressed="true"] .n { background: rgba(255, 255, 255, .22); color: #fff; }
+        .cat.none { opacity: .45; }
+
+        .tpl-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(300px, 400px) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); border-top: 1px solid var(--border); }
+        .tpl-list { min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 3px; padding: 4px 10px 12px; background: var(--surface-2); }
+        .tpl-group { position: sticky; top: 0; z-index: 1; padding: 12px 8px 7px; font: 700 11px var(--font-sans); letter-spacing: .08em; text-transform: uppercase; color: var(--fg-subtle); background: var(--surface-2); }
+        .tpl-item {
+            display: flex; align-items: center; gap: 12px; width: 100%; padding: 9px 10px;
+            border: 1px solid transparent; border-radius: 14px; background: transparent; text-align: left;
+            transition: background .15s, border-color .15s, transform .15s, box-shadow .15s;
+        }
+        .tpl-item:hover { background: var(--surface); transform: translateX(2px); }
+        .tpl-item[aria-selected="true"] { background: var(--surface); border-color: var(--color-primary-300); box-shadow: var(--shadow-xs); }
+        .tpl-item:focus-visible { outline: 2px solid var(--color-primary-500); outline-offset: -2px; }
+        .tpl-item .tile, .pv-top .tile { flex: none; display: grid; place-items: center; border-radius: 12px; background: var(--accent-soft); color: var(--accent-ink); transition: background .2s, color .2s; }
+        .tpl-item .tile { width: 38px; height: 38px; font-size: 18px; }
+        .tpl-item[aria-selected="true"] .tile { background: var(--color-primary); color: #fff; }
+        .tpl-item .meta { min-width: 0; flex: 1; }
+        .tpl-item b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; font-weight: 700; color: var(--fg); }
+        .tpl-item small { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; font-size: 12px; line-height: 1.4; color: var(--fg-muted); }
+
+        .lvl { display: inline-flex; align-items: flex-end; gap: 2px; height: 12px; flex: none; }
+        .lvl i { width: 4px; border-radius: 2px; background: var(--border-strong); }
+        .lvl i:nth-child(1) { height: 5px; }
+        .lvl i:nth-child(2) { height: 8px; }
+        .lvl i:nth-child(3) { height: 12px; }
+        .lvl[data-l="1"] i:nth-child(-n+1), .lvl[data-l="2"] i:nth-child(-n+2), .lvl[data-l="3"] i { background: var(--color-primary-500); }
+
+        .tpl-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; margin: auto; padding: 40px 16px; text-align: center; color: var(--fg-muted); font-size: 13.5px; }
+        .tpl-empty .ic { font-size: 30px; color: var(--accent-ink); animation: floaty 3.4s ease-in-out infinite; }
+        .tpl-empty strong { color: var(--fg); font-size: 15px; }
+
+        .tpl-preview { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--surface); border-left: 1px solid var(--border); }
+        .pv-head { flex: none; padding: 18px 22px 12px; }
+        .pv-top { display: flex; align-items: center; gap: 14px; }
+        .pv-top .tile { width: 48px; height: 48px; font-size: 23px; border-radius: 15px; }
+        .pv-head h3 { font-size: 20px; font-weight: 800; letter-spacing: -0.01em; line-height: 1.2; }
+        .pv-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 7px; }
+        .pv-badges .badge .ic { font-size: 12px; }
+        .badge.lv1 { background: rgba(18, 161, 80, .12); color: var(--success); border-color: rgba(18, 161, 80, .3); }
+        .badge.lv2 { background: rgba(224, 138, 0, .12); color: var(--warning); border-color: rgba(224, 138, 0, .3); }
+        .badge.lv3 { background: var(--accent-soft); color: var(--accent-ink); border-color: var(--color-primary-300); }
+        .pv-desc { margin-top: 12px; font-size: 14px; line-height: 1.55; color: var(--fg-muted); }
+        .pv-input { display: flex; align-items: flex-start; gap: 10px; margin-top: 12px; padding: 10px 12px; border-radius: 12px; background: var(--accent-soft); color: var(--accent-ink); font-size: 12.5px; font-weight: 600; }
+        .pv-input .ic { margin-top: 2px; }
+        .pv-input code { display: block; margin-top: 2px; white-space: pre; font: 500 12.5px/1.5 var(--font-mono); color: var(--fg); }
+        .pv-back { display: none; margin-bottom: 8px; margin-left: -6px; }
+
+        .pv-code { flex: 1; min-height: 0; display: flex; flex-direction: column; margin: 0 22px; overflow: hidden; border-radius: 16px; background: var(--code-bg); border: 1px solid var(--border); }
+        .pv-bar { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px 6px 14px; border-bottom: 1px solid rgba(255, 255, 255, .07); color: var(--code-muted); font: 500 12px var(--font-mono); }
+        .pv-bar .tool { height: 28px; color: #adacbe; }
+        .pv-bar .tool:hover { background: rgba(255, 255, 255, .09); color: #fff; }
+        .pv-bar .tool.done { color: #53d88c; }
+        .pv-scroll { flex: 1; min-height: 0; display: flex; align-items: flex-start; overflow: auto; }
+        .pv-gutter, .pv-src { margin: 0; font: 400 13px/1.7 var(--font-mono); font-variant-ligatures: none; tab-size: 4; -moz-tab-size: 4; }
+        .pv-gutter { position: sticky; left: 0; flex: none; min-height: 100%; padding: 14px 12px 14px 14px; text-align: right; color: var(--code-gutter); background: var(--code-bg); border-right: 1px solid rgba(255, 255, 255, .05); user-select: none; -webkit-user-select: none; }
+        .pv-src { flex: 1; min-width: max-content; padding: 14px 18px; white-space: pre; color: var(--code-fg); }
+        .pv-src code { font: inherit; }
+
+        .pv-actions { flex: none; display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 10px; padding: 14px 22px 18px; }
+        .pv-actions .hint-text { margin-right: auto; font-size: 12px; color: var(--fg-subtle); }
+        .btn-ghost {
+            display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 42px; padding: 0 16px;
+            border: 1px solid var(--border-strong); border-radius: var(--radius-full); background: var(--surface); color: var(--fg);
+            font: 700 14px var(--font-sans); transition: transform .2s, background .2s, border-color .2s, color .2s;
+        }
+        .btn-ghost:hover { transform: translateY(-2px); background: var(--accent-soft); border-color: var(--color-primary-300); color: var(--accent-ink); }
+        .btn-ghost:active { transform: scale(.97); }
+        .pv-actions .btn-run { animation: none; }
+
+        @media (max-width: 760px) {
+            dialog.modal.tpl { width: 100vw; max-width: 100vw; height: 100dvh; border-radius: 0; }
+            .tpl-head { padding: 14px 14px 10px; gap: 10px; }
+            .tpl-head .ttl { flex: 1; }
+            .tpl-head p { display: none; }
+            .tile-lg { width: 40px; height: 40px; font-size: 20px; border-radius: 13px; }
+            .tpl-search { order: 5; flex-basis: 100%; max-width: none; margin-left: 0; }
+            .tpl-search kbd { display: none; }
+            .tpl-cats { padding: 0 14px 10px; }
+            .tpl-body { grid-template-columns: minmax(0, 1fr); }
+            dialog.modal.tpl[data-step="list"] .tpl-preview { display: none; }
+            dialog.modal.tpl[data-step="preview"] .tpl-list { display: none; }
+            .pv-back { display: inline-flex; }
+            .pv-head { padding: 12px 14px 10px; }
+            .pv-code { margin: 0 14px; }
+            .pv-actions { padding: 12px 14px calc(14px + env(safe-area-inset-bottom)); }
+            .pv-actions .hint-text { display: none; }
+            .pv-actions > .btn-ghost, .pv-actions > .btn-run { flex: 1; padding: 0 12px; }
+            .pv-actions .run-kbd { display: none; }
+        }
+
+        @media (max-width: 720px) {
+            .strip-label .t { display: none; }
+            .tpl-strip { padding-left: 12px; }
+        }
+
+        .toasts { position: fixed; z-index: 400; left: 50%; bottom: 26px; transform: translateX(-50%); display: flex; flex-direction: column; align-items: center; gap: 8px; pointer-events: none; width: max-content; max-width: calc(100vw - 32px); }
+        .toast { display: flex; align-items: center; gap: 10px; padding: 11px 16px; border-radius: 14px; background: var(--color-bg-1); color: #fff; font-weight: 600; font-size: 13.5px; box-shadow: 0 14px 40px rgba(0, 0, 0, .35); border: 1px solid rgba(255, 255, 255, .1); opacity: 0; transform: translateY(14px) scale(.96); transition: opacity .3s, transform .35s cubic-bezier(.2, .9, .3, 1.2); }
+        .toast.in { opacity: 1; transform: none; }
+        .toast .ic { color: var(--color-primary-300); font-size: 16px; }
+        .toast.success .ic { color: #53d88c; }
+        .toast.error .ic { color: #ff8b8b; }
+
+        dialog.modal { border: 0; padding: 0; width: min(680px, calc(100vw - 28px)); max-height: calc(100dvh - 40px); overflow: auto; border-radius: 24px; background: var(--surface); color: var(--fg); box-shadow: 0 40px 100px rgba(20, 5, 95, .45); }
+        dialog.modal[open] { animation: pop .38s cubic-bezier(.2, .9, .3, 1.15) both; }
+        dialog.modal::backdrop { background: rgba(20, 5, 95, .5); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+        .modal-head { display: flex; align-items: center; gap: 14px; padding: 22px 24px 8px; }
+        .modal-head .mark { width: 52px; height: 52px; border-radius: 16px; box-shadow: var(--shadow-sm); flex: none; }
+        .modal-head h2 { font-size: var(--font-size-title-6); font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+        .modal-head p { font-size: 13px; color: var(--fg-muted); font-weight: 500; }
+        .modal-head .icon-btn { margin-left: auto; }
+        .modal-body { padding: 8px 24px 24px; display: grid; gap: 20px; }
+        .modal-body > p { color: var(--fg-muted); font-size: 14.5px; line-height: 1.6; }
+        .modal-body > p b { color: var(--fg); }
+        .features { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
+        .feature { padding: 14px; border-radius: 16px; background: var(--surface-2); border: 1px solid var(--border); transition: transform .25s, border-color .25s, box-shadow .25s; }
+        .feature:hover { transform: translateY(-3px); border-color: var(--color-primary-300); box-shadow: var(--shadow-xs); }
+        .feature .tile { width: 34px; height: 34px; display: grid; place-items: center; border-radius: 10px; background: var(--accent-soft); color: var(--accent-ink); margin-bottom: 10px; font-size: 17px; }
+        .feature b { display: block; font-size: 14px; margin-bottom: 3px; }
+        .feature span { font-size: 12.5px; color: var(--fg-muted); line-height: 1.5; display: block; }
+        .shortcuts h3 { font-size: 13px; font-weight: 700; margin-bottom: 8px; color: var(--fg-muted); text-transform: uppercase; letter-spacing: .08em; }
+        .shortcuts ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 4px 20px; }
+        .shortcuts li { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 7px 0; border-bottom: 1px dashed var(--border); font-size: 13px; }
+        .shortcuts li span:last-child { display: inline-flex; gap: 4px; align-items: center; }
+        .modal-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--fg-subtle); }
+
+        /* =====================================================================
+           8. RESPONSIVE
+           ===================================================================== */
+        @media (pointer: coarse) {
+            .editor-body { --code-size: max(16px, var(--fs, 14px)); }
+            #stdin { font-size: 16px; }
+        }
+
+        @media (max-width: 1023.98px) {
+            .workspace { display: flex; flex-direction: column; height: auto; min-height: calc(100dvh - var(--topbar-h)); padding-bottom: 100px; }
+            .view-switch { display: flex; }
+            .panel { height: calc(100vh - var(--topbar-h) - 164px); height: calc(100dvh - var(--topbar-h) - 164px); min-height: 440px; }
+            .workspace[data-view="code"] .panel-output { display: none; }
+            .workspace[data-view="output"] .panel-editor { display: none; }
+            .fab { display: inline-flex; }
+            .topbar .btn-run { display: none; }
+            .toasts { bottom: 90px; }
+        }
+
+        @media (max-width: 720px) {
+            .tool .lbl { display: none; }
+            .tool { padding: 0 9px; }
+            .tool.icon { width: 32px; }
+            .panel-head { padding: 8px 10px; gap: 8px; }
+            .panel-head .saved, .panel-head .stepper, .head-actions .sep { display: none; }
+            .tab { padding: 0 10px; }
+            .tab .ic { display: none; }
+            .brand small { display: none; }
+            .brand h1 { font-size: 19px; }
+            .brand .mark { width: 36px; height: 36px; }
+            .topbar { gap: 8px; }
+            .icon-btn { width: 36px; height: 36px; font-size: 16px; }
+            .sb-hide { display: none !important; }
+        }
+
+        @media (max-width: 560px) {
+            .pill { padding: 9px; }
+            .pill-text { display: none; }
+        }
+
+        @media (min-width: 1024px) { .fab { display: none !important; } }
+
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; }
+            .reveal { opacity: 1; transform: none; }
+        }
+
+        /* =====================================================================
+           9. KEYFRAMES
+           ===================================================================== */
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes spinIn { from { transform: rotate(-90deg) scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
+        @keyframes rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+        @keyframes pop { from { opacity: 0; transform: scale(.92); } to { opacity: 1; transform: none; } }
+        @keyframes paneIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+        @keyframes drift { from { transform: translate3d(0, 0, 0) scale(1); } to { transform: translate3d(60px, 40px, 0) scale(1.15); } }
+        @keyframes shimmer { from { transform: translateX(-120%); } to { transform: translateX(320%); } }
+        @keyframes ping { 0% { box-shadow: 0 0 0 0 rgba(var(--dot-rgb), .55); } 70% { box-shadow: 0 0 0 8px rgba(var(--dot-rgb), 0); } 100% { box-shadow: 0 0 0 0 rgba(var(--dot-rgb), 0); } }
+        @keyframes blink { 50% { color: transparent; } }
+        @keyframes floaty { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+        @keyframes logoPop { from { opacity: 0; transform: scale(.4) rotate(-14deg); } to { opacity: 1; transform: none; } }
+        @keyframes ring { 0% { transform: scale(.85); opacity: .7; } 100% { transform: scale(1.7); opacity: 0; } }
+        @keyframes ripple { to { transform: scale(4); opacity: 0; } }
+        @keyframes runPulse { 0%, 100% { box-shadow: rgba(41, 30, 255, .45) 0 8px 28px 0; } 50% { box-shadow: rgba(41, 30, 255, .7) 0 10px 38px 2px; } }
+    </style>
+
+    <noscript>
+        <style>.reveal { opacity: 1 !important; transform: none !important; } .splash { display: none; }</style>
+    </noscript>
+</head>
+
+<body data-runtime="loading">
+
+    <div class="bg" aria-hidden="true"><i class="orb o1"></i><i class="orb o2"></i><i class="orb o3"></i></div>
+
+    <!-- ===================== ICON SPRITE ===================== -->
+    <svg class="sprite" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+            <linearGradient id="g-brand" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#7985ff" />
+                <stop offset="1" stop-color="#3d33d3" />
+            </linearGradient>
+        </defs>
+        <symbol id="logo-mark" viewBox="0 0 48 48">
+            <rect width="48" height="48" rx="14" fill="url(#g-brand)" />
+            <path d="M18 16.5 26 24l-8 7.5" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+            <path d="M29 32h7" fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" />
+        </symbol>
+        <symbol id="i-play" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3" /></symbol>
+        <symbol id="i-stop" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="2" /></symbol>
+        <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2" ry="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></symbol>
+        <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" x2="12" y1="15" y2="3" /></symbol>
+        <symbol id="i-upload" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" x2="12" y1="3" y2="15" /></symbol>
+        <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></symbol>
+        <symbol id="i-moon" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" /></symbol>
+        <symbol id="i-terminal" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5" /><line x1="12" x2="20" y1="19" y2="19" /></symbol>
+        <symbol id="i-code" viewBox="0 0 24 24"><path d="m18 16 4-4-4-4" /><path d="m6 8-4 4 4 4" /><path d="m14.5 4-5 16" /></symbol>
+        <symbol id="i-input" viewBox="0 0 24 24"><path d="M12 17V3" /><path d="m6 11 6 6 6-6" /><path d="M19 21H5" /></symbol>
+        <symbol id="i-image" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" ry="2" /><circle cx="9" cy="9" r="2" /><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21" /></symbol>
+        <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 16v-4" /><path d="M12 8h.01" /></symbol>
+        <symbol id="i-trash" viewBox="0 0 24 24"><path d="M3 6h18" /><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" /><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" /></symbol>
+        <symbol id="i-vol-on" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><path d="M15.54 8.46a5 5 0 0 1 0 7.07" /><path d="M19.07 4.93a10 10 0 0 1 0 14.14" /></symbol>
+        <symbol id="i-vol-off" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5" /><line x1="22" x2="16" y1="9" y2="15" /><line x1="16" x2="22" y1="9" y2="15" /></symbol>
+        <symbol id="i-book" viewBox="0 0 24 24"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></symbol>
+        <symbol id="i-reset" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" /><path d="M3 3v5h5" /></symbol>
+        <symbol id="i-check" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></symbol>
+        <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></symbol>
+        <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6" /></symbol>
+        <symbol id="i-zap" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></symbol>
+        <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" /><rect x="9" y="9" width="6" height="6" /><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2" /></symbol>
+        <symbol id="i-shield" viewBox="0 0 24 24"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z" /><path d="m9 12 2 2 4-4" /></symbol>
+        <symbol id="i-package" viewBox="0 0 24 24"><path d="m7.5 4.27 9 5.15" /><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" /><path d="m3.3 7 8.7 5 8.7-5" /><path d="M12 22V12" /></symbol>
+        <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /></symbol>
+        <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14" /></symbol>
+        <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14" /><path d="M12 5v14" /></symbol>
+        <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></symbol>
+        <symbol id="i-sparkle" viewBox="0 0 24 24"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z" /></symbol>
+        <symbol id="i-grid" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2" /><path d="M3 9h18" /><path d="M3 15h18" /><path d="M9 3v18" /><path d="M15 3v18" /></symbol>
+        <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M3 5V19A9 3 0 0 0 21 19V5" /><path d="M3 12A9 3 0 0 0 21 12" /></symbol>
+        <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16" /><path d="m19 9-5 5-4-4-3 3" /></symbol>
+        <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" /><path d="M2 12h20" /></symbol>
+        <symbol id="i-keyboard" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M6 8h.001M10 8h.001M14 8h.001M18 8h.001M8 12h.001M12 12h.001M16 12h.001M7 16h10" /></symbol>
+
+        <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></symbol>
+        <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="m18 14 4 4-4 4" /><path d="m18 2 4 4-4 4" /><path d="M2 18h1.973a4 4 0 0 0 3.3-1.7l5.454-8.6a4 4 0 0 1 3.3-1.7H22" /><path d="M2 6h1.972a4 4 0 0 1 3.6 2.2" /><path d="M22 18h-6.041a4 4 0 0 1-3.3-1.8l-.359-.45" /></symbol>
+        <symbol id="i-arrow-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7" /><path d="M19 12H5" /></symbol>
+        <symbol id="i-arrow-right" viewBox="0 0 24 24"><path d="M5 12h14" /><path d="m12 5 7 7-7 7" /></symbol>
+        <symbol id="i-template" viewBox="0 0 24 24"><rect width="18" height="7" x="3" y="3" rx="1" /><rect width="9" height="7" x="3" y="14" rx="1" /><rect width="5" height="7" x="16" y="14" rx="1" /></symbol>
+        <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" /><path d="m22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65" /><path d="m22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65" /></symbol>
+        <symbol id="i-flask" viewBox="0 0 24 24"><path d="M10 2v7.527a2 2 0 0 1-.211.896L4.72 20.55a1 1 0 0 0 .9 1.45h12.76a1 1 0 0 0 .9-1.45l-5.069-10.127A2 2 0 0 1 14 9.527V2" /><path d="M8.5 2h7" /><path d="M7 16h10" /></symbol>
+        <symbol id="i-gamepad" viewBox="0 0 24 24"><line x1="6" x2="10" y1="11" y2="11" /><line x1="8" x2="8" y1="9" y2="13" /><line x1="15" x2="15.01" y1="12" y2="12" /><line x1="18" x2="18.01" y1="10" y2="10" /><path d="M17.32 5H6.68a4 4 0 0 0-3.978 3.59c-.006.052-.01.101-.017.152C2.604 9.416 2 14.456 2 16a3 3 0 0 0 3 3c1 0 1.5-.5 2-1l1.414-1.414A2 2 0 0 1 9.828 16h4.344a2 2 0 0 1 1.414.586L17 18c.5.5 1 1 2 1a3 3 0 0 0 3-3c0-1.545-.604-6.584-.685-7.258-.007-.05-.011-.1-.017-.151A4 4 0 0 0 17.32 5z" /></symbol>
+        <symbol id="i-type" viewBox="0 0 24 24"><polyline points="4 7 4 4 20 4 20 7" /><line x1="9" x2="15" y1="20" y2="20" /><line x1="12" x2="12" y1="4" y2="20" /></symbol>
+        <symbol id="i-route" viewBox="0 0 24 24"><circle cx="6" cy="19" r="3" /><path d="M9 19h8.5a3.5 3.5 0 0 0 0-7h-11a3.5 3.5 0 0 1 0-7H15" /><circle cx="18" cy="5" r="3" /></symbol>
+    </svg>
+
+    <!-- ===================== SPLASH ===================== -->
+    <div id="splash" class="splash" role="status" aria-label="Loading Python Compiler">
+        <div class="splash-logo">
+            <i></i><i></i><i></i>
+            <svg class="mark" viewBox="0 0 48 48" aria-hidden="true"><use href="#logo-mark" /></svg>
+        </div>
+        <h1 class="splash-title"><span>Python</span><span>Compiler</span></h1>
+        <p class="splash-sub">Spinning up your in-browser runtime…</p>
+        <div class="splash-bar"><span></span></div>
+    </div>
+
+    <!-- ===================== TOP BAR ===================== -->
+    <header class="topbar reveal" style="--d:0">
+        <div class="brand">
+            <svg class="mark" viewBox="0 0 48 48" aria-hidden="true"><use href="#logo-mark" /></svg>
+            <div>
+                <h1>Python <b>Compiler</b></h1>
+                <small>Runs 100% in your browser</small>
+            </div>
+        </div>
+
+        <div class="topbar-spacer"></div>
+
+        <div class="pill" id="pill" data-state="loading" role="status" title="Runtime status">
+            <span class="dot"></span><span class="pill-text" id="pill-text">Loading Python…</span>
+        </div>
+
+        <button class="icon-btn" id="btn-sound" aria-label="Toggle typing sounds" title="Typing sounds">
+            <svg class="ic swap" data-on="1"><use href="#i-vol-on" /></svg>
+            <svg class="ic swap" data-on="0"><use href="#i-vol-off" /></svg>
+        </button>
+        <button class="icon-btn" id="btn-theme" aria-label="Toggle light / dark theme" title="Theme">
+            <svg class="ic swap" data-theme-icon="light"><use href="#i-moon" /></svg>
+            <svg class="ic swap" data-theme-icon="dark"><use href="#i-sun" /></svg>
+        </button>
+        <button class="icon-btn" id="btn-about" aria-label="About and shortcuts" title="About & shortcuts">
+            <svg class="ic"><use href="#i-info" /></svg>
+        </button>
+
+        <button class="btn-run js-run" id="run-top" data-state="loading" disabled>
+            <svg class="ic ic-solid i-play" aria-hidden="true"><use href="#i-play" /></svg>
+            <svg class="ic ic-solid i-stop" aria-hidden="true"><use href="#i-stop" /></svg>
+            <span class="spinner" aria-hidden="true"></span>
+            <span class="run-label">Loading…</span>
+            <kbd class="run-kbd"><span class="mod">Ctrl</span> ↵</kbd>
+        </button>
+
+        <div class="progress" aria-hidden="true"></div>
+    </header>
+
+    <!-- ===================== WORKSPACE ===================== -->
+    <main class="workspace" id="workspace" data-view="code">
+
+        <div class="view-switch reveal" style="--d:1" role="tablist" aria-label="Switch view">
+            <button class="vs-btn" role="tab" data-view-btn="code" aria-selected="true"><svg class="ic"><use href="#i-code" /></svg>Code</button>
+            <button class="vs-btn" role="tab" data-view-btn="output" aria-selected="false"><svg class="ic"><use href="#i-terminal" /></svg>Output</button>
+        </div>
+
+        <!-- ---------- Editor ---------- -->
+        <section class="panel panel-editor reveal" style="--d:2" aria-label="Code editor">
+            <header class="panel-head">
+                <div class="file-tab">
+                    <svg class="ic"><use href="#i-file" /></svg>main.py
+                    <span class="saved" id="saved" aria-hidden="true"><svg class="ic"><use href="#i-check" /></svg>Saved</span>
+                </div>
+                <div class="head-actions">
+                    <button class="tool icon" id="btn-upload" title="Open a .py file" aria-label="Open a .py file"><svg class="ic"><use href="#i-upload" /></svg></button>
+                    <button class="tool icon" id="btn-download" title="Download main.py (Ctrl/⌘+S)" aria-label="Download main.py"><svg class="ic"><use href="#i-download" /></svg></button>
+                    <button class="tool icon" id="btn-copy" title="Copy code" aria-label="Copy code"><svg class="ic"><use href="#i-copy" /></svg></button>
+                    <button class="tool icon" id="btn-reset" title="Reset to starter code" aria-label="Reset to starter code"><svg class="ic"><use href="#i-reset" /></svg></button>
+                    <span class="sep"></span>
+                    <div class="stepper" role="group" aria-label="Editor text size">
+                        <button id="fs-down" aria-label="Smaller text"><svg class="ic"><use href="#i-minus" /></svg></button>
+                        <span id="fs-label">14</span>
+                        <button id="fs-up" aria-label="Larger text"><svg class="ic"><use href="#i-plus" /></svg></button>
+                    </div>
+                </div>
+                <input type="file" id="file-input" accept=".py,.txt,text/x-python,text/plain" hidden>
+            </header>
+
+            <div class="tpl-strip" id="tpl-strip">
+                <span class="strip-label"><svg class="ic" aria-hidden="true"><use href="#i-template" /></svg><span class="t">Templates</span></span>
+                <div class="strip-items" id="strip-items" role="group" aria-label="Quick-start templates"></div>
+                <button class="chip chip-all" id="strip-all" aria-haspopup="dialog" title="Browse all templates (Ctrl/&#8984; + K)">Browse all<span class="n" id="strip-n">0</span><svg class="ic" aria-hidden="true"><use href="#i-arrow-right" /></svg></button>
+            </div>
+
+            <div class="editor-body" id="editor-body">
+                <div class="gutter" id="gutter" aria-hidden="true"><div class="gutter-inner" id="gutter-inner"></div></div>
+                <div class="code-area" id="code-area">
+                    <div class="active-line" id="active-line"></div>
+                    <pre class="hl" aria-hidden="true"><code id="hl-code"></code></pre>
+                    <textarea id="editor" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" wrap="off" aria-label="Python code editor"></textarea>
+                    <div class="drop-hint" id="drop-hint">Drop a .py file to open it</div>
+                </div>
+            </div>
+
+            <footer class="statusbar">
+                <span class="item" id="sb-pos">Ln 1, Col 1</span>
+                <span class="grow"></span>
+                <span class="item sb-hide">Spaces: 4</span>
+                <span class="item sb-hide">UTF-8</span>
+                <span class="item" id="sb-py">Python</span>
+            </footer>
+        </section>
+
+        <!-- ---------- Output ---------- -->
+        <section class="panel panel-output reveal" style="--d:3" aria-label="Program output">
+            <header class="panel-head">
+                <div class="tabs" id="out-tabs" role="tablist" aria-label="Output views">
+                    <button class="tab" role="tab" id="tab-console" data-tab="console" aria-selected="true" aria-controls="pane-console"><svg class="ic"><use href="#i-terminal" /></svg>Console</button>
+                    <button class="tab" role="tab" id="tab-input" data-tab="input" aria-selected="false" aria-controls="pane-input" tabindex="-1"><svg class="ic"><use href="#i-input" /></svg>Input<span class="count" id="count-input" hidden>0</span></button>
+                    <button class="tab" role="tab" id="tab-plots" data-tab="plots" aria-selected="false" aria-controls="pane-plots" tabindex="-1"><svg class="ic"><use href="#i-image" /></svg>Plots<span class="count" id="count-plots" hidden>0</span></button>
+                    <span class="tab-ink" id="tab-ink"></span>
+                </div>
+                <div class="head-actions">
+                    <button class="tool" id="btn-out-copy" title="Copy output"><svg class="ic"><use href="#i-copy" /></svg><span class="lbl">Copy</span></button>
+                    <button class="tool" id="btn-out-clear" title="Clear"><svg class="ic"><use href="#i-trash" /></svg><span class="lbl">Clear</span></button>
+                </div>
+            </header>
+
+            <div class="panes">
+                <div class="pane pane-console is-empty" id="pane-console" role="tabpanel" aria-labelledby="tab-console">
+                    <div class="console" id="console"></div>
+                    <div class="empty"><svg class="ic"><use href="#i-terminal" /></svg><strong>Ready when you are</strong><span>Press Run to see your program's output here.</span></div>
+                </div>
+
+                <div class="pane pane-input" id="pane-input" role="tabpanel" aria-labelledby="tab-input" hidden>
+                    <div class="hint"><svg class="ic"><use href="#i-info" /></svg><span>Program input (stdin). Put one value per line; each <code>input()</code> call reads the next line.</span></div>
+                    <textarea id="stdin" spellcheck="false" autocomplete="off" autocorrect="off" autocapitalize="off" aria-label="Program input" placeholder="Ada&#10;21"></textarea>
+                </div>
+
+                <div class="pane pane-plots is-empty" id="pane-plots" role="tabpanel" aria-labelledby="tab-plots" hidden>
+                    <div class="plots" id="plots"></div>
+                    <div class="empty"><svg class="ic"><use href="#i-chart" /></svg><strong>No plots yet</strong><span>Use matplotlib and call plt.show(). Figures appear here after the run.</span></div>
+                </div>
+            </div>
+
+            <footer class="statusbar">
+                <span class="badge" id="exit-badge">Idle</span>
+                <span class="grow"></span>
+                <label class="item" for="timeout">Timeout
+                    <select class="select" id="timeout" aria-label="Run timeout">
+                        <option value="10">10s</option>
+                        <option value="30" selected>30s</option>
+                        <option value="60">60s</option>
+                        <option value="120">2 min</option>
+                        <option value="300">5 min</option>
+                    </select>
+                </label>
+            </footer>
+        </section>
+    </main>
+
+    <!-- Mobile run button -->
+    <button class="btn-run fab js-run" id="run-fab" data-state="loading" disabled>
+        <svg class="ic ic-solid i-play" aria-hidden="true"><use href="#i-play" /></svg>
+        <svg class="ic ic-solid i-stop" aria-hidden="true"><use href="#i-stop" /></svg>
+        <span class="spinner" aria-hidden="true"></span>
+        <span class="run-label">Loading…</span>
+    </button>
+
+    <!-- Templates gallery -->
+    <dialog class="modal tpl" id="tpl" aria-labelledby="tpl-title" data-step="list">
+        <div class="tpl-head">
+            <div class="ttl">
+                <div class="tile-lg"><svg class="ic" aria-hidden="true"><use href="#i-template" /></svg></div>
+                <div>
+                    <h2 id="tpl-title">Templates</h2>
+                    <p id="tpl-count">0 templates</p>
+                </div>
+            </div>
+            <label class="tpl-search">
+                <span class="sr-only">Search templates</span>
+                <svg class="ic" aria-hidden="true"><use href="#i-search" /></svg>
+                <input id="tpl-search" type="search" placeholder="Search: unittest, sorting, async&#8230;" autocomplete="off" spellcheck="false">
+                <kbd>/</kbd>
+            </label>
+            <button class="icon-btn" id="tpl-random" title="Surprise me" aria-label="Pick a random template"><svg class="ic"><use href="#i-shuffle" /></svg></button>
+            <button class="icon-btn" id="tpl-close" aria-label="Close templates"><svg class="ic"><use href="#i-x" /></svg></button>
+        </div>
+        <div class="tpl-cats" id="tpl-cats" role="group" aria-label="Filter by category"></div>
+        <div class="tpl-body">
+            <div class="tpl-list" id="tpl-list" role="listbox" aria-label="Templates"></div>
+            <div class="tpl-preview" id="tpl-preview"></div>
+        </div>
+    </dialog>
+
+    <!-- About dialog -->
+    <dialog class="modal" id="about" aria-labelledby="about-title">
+        <div class="modal-head">
+            <svg class="mark" viewBox="0 0 48 48" aria-hidden="true"><use href="#logo-mark" /></svg>
+            <div>
+                <h2 id="about-title">About this app</h2>
+                <p>GlassMorphism × Futurestick Technology UI/UX</p>
+            </div>
+            <button class="icon-btn" id="about-close" aria-label="Close"><svg class="ic"><use href="#i-x" /></svg></button>
+        </div>
+        <div class="modal-body">
+            <p>A web-based Python compiler built for a seamless, responsive experience. Python runs directly in your browser through <b>Pyodide</b> (WebAssembly), so there is <b>no server, API key or rate limit</b>, and your code never leaves your device.</p>
+            <div class="features">
+                <div class="feature"><div class="tile"><svg class="ic"><use href="#i-cpu" /></svg></div><b>Runs locally</b><span>Pyodide in a Web Worker keeps the page smooth and Stop always works.</span></div>
+                <div class="feature"><div class="tile"><svg class="ic"><use href="#i-input" /></svg></div><b>Live input()</b><span>Use the Input tab, one line per input() call. Echoed like a terminal.</span></div>
+                <div class="feature"><div class="tile"><svg class="ic"><use href="#i-package" /></svg></div><b>Smart packages</b><span>numpy, pandas, scipy and matplotlib load on demand. Pure-Python PyPI packages install automatically.</span></div>
+                <div class="feature"><div class="tile"><svg class="ic"><use href="#i-chart" /></svg></div><b>Plots tab</b><span>Matplotlib figures render as images you can download.</span></div>
+                <div class="feature"><div class="tile"><svg class="ic"><use href="#i-zap" /></svg></div><b>Async ready</b><span>Top-level await and asyncio.run() work out of the box.</span></div>
+                <div class="feature"><div class="tile"><svg class="ic"><use href="#i-shield" /></svg></div><b>Safe by design</b><span>Exit codes, tracebacks, output limits and a configurable timeout.</span></div>
+                <div class="feature"><div class="tile"><svg class="ic"><use href="#i-template" /></svg></div><b>Templates</b><span>Pick a ready-made program from the library, then load it or run it in one click.</span></div>
+                <div class="feature"><div class="tile"><svg class="ic"><use href="#i-flask" /></svg></div><b>Test ready</b><span>unittest, unittest.mock and doctest work, with ready-made test templates.</span></div>
+                <div class="feature"><div class="tile"><svg class="ic"><use href="#i-check" /></svg></div><b>Auto-saved</b><span>Your code, input, theme and text size are remembered on this device.</span></div>
+            </div>
+            <div class="shortcuts">
+                <h3>Keyboard shortcuts</h3>
+                <ul>
+                    <li><span>Run code</span><span><kbd class="mod">Ctrl</kbd><kbd>Enter</kbd></span></li>
+                    <li><span>Download main.py</span><span><kbd class="mod">Ctrl</kbd><kbd>S</kbd></span></li>
+                    <li><span>Toggle comment</span><span><kbd class="mod">Ctrl</kbd><kbd>/</kbd></span></li>
+                    <li><span>Indent / dedent</span><span><kbd>Tab</kbd><kbd>Shift+Tab</kbd></span></li>
+                    <li><span>Leave editor with Tab</span><span><kbd>Esc</kbd><kbd>Tab</kbd></span></li>
+                    <li><span>Open templates</span><span><kbd class="mod">Ctrl</kbd><kbd>K</kbd></span></li>
+                    <li><span>Run the selected template</span><span><kbd class="mod">Ctrl</kbd><kbd>Enter</kbd></span></li>
+                </ul>
+            </div>
+            <div class="modal-foot"><span id="about-runtime">Python runtime loading…</span><span>Tip: your code and input are auto-saved on this device.</span></div>
+        </div>
+    </dialog>
+
+    <div class="toasts" id="toasts" aria-live="polite"></div>
+    <div class="sr-only" id="sr" role="status" aria-live="polite"></div>
+
+    <!-- =====================================================================
+         PYTHON HARNESS — executes user code, reports exit code, handles async,
+         collects matplotlib figures
+         ===================================================================== -->
+    <script type="text/x-python" id="py-harness">
+import ast, builtins, inspect, linecache, sys, traceback, warnings, os, types
+
+os.environ['MPLBACKEND'] = 'AGG'
+warnings.filterwarnings('ignore', message='FigureCanvasAgg is non-interactive')
+
+
+class _AsyncRunRewriter(ast.NodeTransformer):
+    """Turn module-level asyncio.run(x) / loop.run_until_complete(x) into `await x`
+    (Pyodide's event loop is already running, so those calls cannot block)."""
+
+    def visit_FunctionDef(self, node):
+        return node
+
+    visit_AsyncFunctionDef = visit_FunctionDef
+    visit_ClassDef = visit_FunctionDef
+    visit_Lambda = visit_FunctionDef
+
+    def visit_Call(self, node):
+        self.generic_visit(node)
+        f = node.func
+        if (isinstance(f, ast.Attribute) and node.args
+                and not isinstance(node.args[0], ast.Starred)):
+            is_run = (f.attr == 'run' and isinstance(f.value, ast.Name)
+                      and f.value.id == 'asyncio')
+            if is_run or f.attr == 'run_until_complete':
+                return ast.copy_location(ast.Await(value=node.args[0]), node)
+        return node
+
+
+def __pyc_missing(src):
+    """Top-level imported modules that are not available yet."""
+    from pyodide.code import find_imports
+    import importlib.util
+    missing = []
+    for name in find_imports(src):
+        if name in sys.modules:
+            continue
+        try:
+            if importlib.util.find_spec(name) is None:
+                missing.append(name)
+        except Exception:
+            missing.append(name)
+    return missing
+
+
+def __pyc_figs():
+    """PNG (base64) for every open matplotlib figure, then close them all."""
+    out = []
+    plt = sys.modules.get('matplotlib.pyplot')
+    if plt is None:
+        return out
+    import base64, io
+    try:
+        for num in plt.get_fignums():
+            fig = plt.figure(num)
+            buf = io.BytesIO()
+            fig.savefig(buf, format='png', dpi=110, bbox_inches='tight',
+                        facecolor=fig.get_facecolor())
+            out.append(base64.b64encode(buf.getvalue()).decode('ascii'))
+    finally:
+        try:
+            plt.close('all')
+        except Exception:
+            pass
+    return out
+
+
+async def __pyc_run(src):
+    code = 0
+    prev_main = sys.modules.get('__main__')
+    prev_argv = getattr(sys, 'argv', None)
+    for stream in (sys.stdout, sys.stderr):
+        try:
+            stream.reconfigure(line_buffering=True)
+        except Exception:
+            pass
+    if 'matplotlib' in src:
+        try:
+            import matplotlib
+            matplotlib.use('agg')
+        except Exception:
+            pass
+    try:
+        linecache.cache['<main>'] = (len(src), None, src.splitlines(True), '<main>')
+        tree = ast.parse(src, '<main>', 'exec')
+        tree = ast.fix_missing_locations(_AsyncRunRewriter().visit(tree))
+        compiled = compile(tree, '<main>', 'exec', flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
+        # Run as a real __main__ module so unittest.main(), doctest.testmod(),
+        # mock.patch('__main__.x') and pickle can find the user's code.
+        main_mod = types.ModuleType('__main__')
+        main_mod.__file__ = 'main.py'
+        main_mod.__builtins__ = builtins
+        sys.modules['__main__'] = main_mod
+        sys.argv = ['main.py']
+        result = eval(compiled, main_mod.__dict__)
+        if inspect.isawaitable(result):
+            await result
+    except SystemExit as e:
+        c = e.code
+        if c is None:
+            code = 0
+        elif isinstance(c, int):
+            code = c
+        else:
+            print(c, file=sys.stderr)
+            code = 1
+    except BaseException:
+        etype, evalue, tb = sys.exc_info()
+        while tb is not None and tb.tb_frame.f_code.co_filename != '<main>':
+            tb = tb.tb_next
+        traceback.print_exception(etype, evalue, tb)
+        code = 1
+    finally:
+        if prev_main is not None:
+            sys.modules['__main__'] = prev_main
+        if prev_argv is not None:
+            sys.argv = prev_argv
+        try:
+            sys.stdout.flush()
+            sys.stderr.flush()
+        except Exception:
+            pass
+    return code
+    </script>
+
+    <!-- Web Worker: loads Pyodide off the main thread so Stop / timeouts always work -->
+    <script type="text/plain" id="worker-src">
+const PYODIDE_URL = 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/';
+const MAX_CHARS = 300000;
+
+let pyodide = null;
+let current = null;      // 'out' | 'err' : stream the pending bytes belong to
+let pending = [];
+let sent = 0;
+let overflowed = false;
+let stdinLines = [];
+const decoders = { out: new TextDecoder(), err: new TextDecoder() };
+const encoder = new TextEncoder();
+
+function flush() {
+    if (!pending.length || !current) { pending = []; return; }
+    const text = decoders[current].decode(new Uint8Array(pending), { stream: true });
+    pending = [];
+    if (!text || overflowed) return;
+    sent += text.length;
+    if (sent > MAX_CHARS) {
+        overflowed = true;
+        postMessage({ type: 'overflow' });
+        return;
+    }
+    postMessage({ type: 'chunk', stream: current, text: text });
+}
+
+function writeByte(stream, b) {
+    if (current !== stream) { flush(); current = stream; }
+    pending.push(b & 255);
+    if (b === 10 || pending.length >= 4096) flush();
+}
+
+function readStdin() {
+    flush(); // make sure a pending input() prompt is shown before the echoed answer
+    if (!stdinLines.length) return undefined; // EOF -> input() raises EOFError like a real pipe
+    const line = stdinLines.shift() + '\n';
+    postMessage({ type: 'chunk', stream: 'in', text: line }); // echo, like a terminal
+    return encoder.encode(line);
+}
+
+function splitLines(text) {
+    if (!text) return [];
+    const lines = text.replace(/\r\n?/g, '\n').split('\n');
+    if (lines.length && lines[lines.length - 1] === '') lines.pop();
+    return lines;
+}
+
+async function init(harness) {
+    postMessage({ type: 'status', text: 'Loading Python runtime...' });
+    importScripts(PYODIDE_URL + 'pyodide.js');
+    pyodide = await loadPyodide({ indexURL: PYODIDE_URL });
+    pyodide.setStdout({ raw: function (b) { writeByte('out', b); } });
+    pyodide.setStderr({ raw: function (b) { writeByte('err', b); } });
+    pyodide.setStdin({ stdin: readStdin });
+    await pyodide.runPythonAsync(harness);
+    const python = pyodide.runPython('import sys\nsys.version.split()[0]');
+    postMessage({ type: 'ready', python: python });
+}
+
+async function prepare(code) {
+    const report = function (m) { postMessage({ type: 'status', text: m }); };
+    // Packages bundled with Pyodide (numpy, pandas, matplotlib, scipy, ...)
+    await pyodide.loadPackagesFromImports(code, { messageCallback: report, errorCallback: report });
+    // Anything still missing: try pure-Python wheels from PyPI
+    const missing = pyodide.globals.get('__pyc_missing')(code).toJs();
+    if (missing.length) {
+        report('Installing ' + missing.join(', ') + ' from PyPI...');
+        await pyodide.loadPackage('micropip');
+        const micropip = pyodide.pyimport('micropip');
+        for (const name of missing) {
+            try { await micropip.install(name); }
+            catch (e) { report('Could not install "' + name + '" (not on PyPI or not pure-Python).'); }
+        }
+    }
+}
+
+self.onmessage = async function (e) {
+    const m = e.data;
+    if (m.type === 'init') {
+        try { await init(m.harness); }
+        catch (err) { postMessage({ type: 'initError', message: String((err && err.message) || err) }); }
+        return;
+    }
+    if (m.type === 'run') {
+        stdinLines = splitLines(m.stdin);
+        sent = 0; overflowed = false; current = null; pending = [];
+        decoders.out = new TextDecoder(); decoders.err = new TextDecoder();
+        const t0 = performance.now();
+        let code = 1;
+        try {
+            try { await prepare(m.code); }
+            catch (err) { postMessage({ type: 'status', text: 'Package setup problem: ' + String((err && err.message) || err) }); }
+            postMessage({ type: 'started' });
+            pyodide.globals.set('__pyc_src', m.code);
+            code = await pyodide.runPythonAsync('await __pyc_run(__pyc_src)');
+        } catch (err) {
+            flush();
+            current = 'err';
+            postMessage({ type: 'chunk', stream: 'err', text: String((err && err.message) || err) + '\n' });
+        }
+        flush();
+        let figs = [];
+        try {
+            const proxy = pyodide.runPython('__pyc_figs()');
+            figs = proxy.toJs();
+            if (proxy.destroy) proxy.destroy();
+        } catch (err) { figs = []; }
+        postMessage({ type: 'figs', figs: figs });
+        postMessage({ type: 'done', code: code, ms: Math.round(performance.now() - t0) });
+    }
+};
+    </script>
+
+    <!-- =====================================================================
+         APP
+         ===================================================================== -->
+    <script>
+    (() => {
+        'use strict';
+
+        const $ = (s, r = document) => r.querySelector(s);
+        const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
+        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        const isMac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent);
+        const isMobileLayout = () => window.matchMedia('(max-width: 1023.98px)').matches;
+        const finePointer = window.matchMedia('(pointer: fine)').matches;
+
+        const store = {
+            get(k, d = null) { try { const v = localStorage.getItem('pyc:' + k); return v === null ? d : v; } catch (e) { return d; } },
+            set(k, v) { try { localStorage.setItem('pyc:' + k, v); } catch (e) { /* storage blocked */ } }
+        };
+
+        $$('.mod').forEach(el => { el.textContent = isMac ? '⌘' : 'Ctrl'; });
+
+        /* ---------- Toasts ---------- */
+        const toastsEl = $('#toasts');
+        function toast(msg, kind = 'info', icon = 'i-info') {
+            const el = document.createElement('div');
+            el.className = 'toast ' + kind;
+            el.innerHTML = '<svg class="ic"><use href="#' + icon + '"/></svg><span></span>';
+            el.lastChild.textContent = msg;
+            toastsEl.appendChild(el);
+            requestAnimationFrame(() => el.classList.add('in'));
+            setTimeout(() => { el.classList.remove('in'); setTimeout(() => el.remove(), 350); }, 2300);
+        }
+
+        /* ---------- Theme ---------- */
+        const metaTheme = $('#meta-theme');
+        function applyTheme(t, animate) {
+            const root = document.documentElement;
+            if (animate) { root.classList.add('theme-anim'); setTimeout(() => root.classList.remove('theme-anim'), 450); }
+            root.setAttribute('data-theme', t);
+            metaTheme.setAttribute('content', t === 'dark' ? '#0b0b10' : '#eef4fe');
+            $$('[data-theme-icon]').forEach(i => i.classList.toggle('on', i.dataset.themeIcon === t));
+            $('#btn-theme').setAttribute('aria-pressed', String(t === 'dark'));
+        }
+        applyTheme(document.documentElement.getAttribute('data-theme') || 'light', false);
+        $('#btn-theme').addEventListener('click', () => {
+            const next = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            store.set('theme', next);
+            applyTheme(next, true);
+        });
+
+        /* ---------- Sound (synthesised — no audio file needed) ---------- */
+        let soundOn = store.get('sound', '1') === '1';
+        let actx = null;
+        function paintSound() {
+            $$('[data-on]').forEach(i => i.classList.toggle('on', (i.dataset.on === '1') === soundOn));
+            $('#btn-sound').setAttribute('aria-pressed', String(soundOn));
+        }
+        paintSound();
+        function ensureAudio() {
+            if (!soundOn) return;
+            try {
+                actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+                if (actx.state === 'suspended') actx.resume();
+            } catch (e) { /* no audio */ }
+        }
+        function blip(freq, dur, vol, type, when) {
+            if (!soundOn || !actx || actx.state !== 'running') return;
+            const t = actx.currentTime + (when || 0);
+            const o = actx.createOscillator(), g = actx.createGain();
+            o.type = type || 'square';
+            o.frequency.setValueAtTime(freq, t);
+            g.gain.setValueAtTime(0.0001, t);
+            g.gain.exponentialRampToValueAtTime(vol || 0.02, t + 0.004);
+            g.gain.exponentialRampToValueAtTime(0.0001, t + (dur || 0.03));
+            o.connect(g); g.connect(actx.destination);
+            o.start(t); o.stop(t + (dur || 0.03) + 0.02);
+        }
+        const keyTick = () => blip(1100 + Math.random() * 500, 0.025, 0.018, 'square');
+        function chime(ok) {
+            if (ok) { blip(660, 0.14, 0.05, 'sine'); blip(990, 0.2, 0.05, 'sine', 0.1); }
+            else { blip(196, 0.28, 0.06, 'triangle'); }
+        }
+        $('#btn-sound').addEventListener('click', () => {
+            soundOn = !soundOn; store.set('sound', soundOn ? '1' : '0'); paintSound();
+            if (soundOn) { ensureAudio(); setTimeout(() => blip(880, 0.08, 0.05, 'sine'), 30); }
+            toast(soundOn ? 'Typing sounds on' : 'Typing sounds off', 'info', soundOn ? 'i-vol-on' : 'i-vol-off');
+        });
+
+        /* ---------- Clipboard helper ---------- */
+        async function copyText(text) {
+            try {
+                if (navigator.clipboard && window.isSecureContext) { await navigator.clipboard.writeText(text); return true; }
+            } catch (e) { /* fall through */ }
+            const ta = document.createElement('textarea');
+            ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+            document.body.appendChild(ta); ta.select();
+            let ok = false;
+            try { ok = document.execCommand('copy'); } catch (e) { ok = false; }
+            ta.remove();
+            return ok;
+        }
+        function flashDone(btn) {
+            btn.classList.add('done');
+            const use = btn.querySelector('use');
+            const prev = use.getAttribute('href');
+            use.setAttribute('href', '#i-check');
+            setTimeout(() => { btn.classList.remove('done'); use.setAttribute('href', prev); }, 1300);
+        }
+
+        /* =================================================================
+           EDITOR
+           ================================================================= */
+        const DEFAULT_CODE = '# Write your code here\nprint("Hello, World!")\n\nfor i in range(1, 6):\n    print(" " * (5 - i) + "*" * (2 * i - 1))\n';
+
+        const editor = $('#editor');
+        const hlCode = $('#hl-code');
+        const gutter = $('#gutter');
+        const gutterInner = $('#gutter-inner');
+        const editorBody = $('#editor-body');
+        const activeLineEl = $('#active-line');
+        const sbPos = $('#sb-pos');
+
+        /*HL-START*/
+        const KEYWORDS = new Set('False None True and as assert async await break class continue def del elif else except finally for from global if import in is lambda nonlocal not or pass raise return try while with yield'.split(' '));
+        const CONSTS = new Set(['True', 'False', 'None']);
+        const BUILTINS = new Set('print input len range int str float bool list dict set tuple frozenset type isinstance issubclass enumerate zip map filter sum min max abs sorted reversed open any all round format repr id hash iter next object super property staticmethod classmethod divmod pow chr ord bin hex oct bytes bytearray complex slice vars dir getattr setattr hasattr delattr callable globals locals eval exec compile Exception BaseException ValueError TypeError KeyError IndexError AttributeError RuntimeError ZeroDivisionError StopIteration ImportError NameError OSError NotImplementedError AssertionError'.split(' '));
+        const TOKEN_RE = /(#[^\n]*)|([rRbBfFuU]{0,2}(?:"""[\s\S]*?(?:"""|(?![\s\S]))|'''[\s\S]*?(?:'''|(?![\s\S]))|"(?:\\.|[^"\\\n])*(?:"|(?=\n)|(?![\s\S]))|'(?:\\.|[^'\\\n])*(?:'|(?=\n)|(?![\s\S]))))|(@[A-Za-z_][\w.]*)|(\b\d[\d_]*(?:\.\d*)?(?:[eE][+-]?\d+)?j?\b|\.\d+(?:[eE][+-]?\d+)?j?\b)|([A-Za-z_]\w*)/g;
+        const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+        function highlight(src) {
+            let out = '', last = 0, m, prevKw = '';
+            TOKEN_RE.lastIndex = 0;
+            while ((m = TOKEN_RE.exec(src)) !== null) {
+                const gap = src.slice(last, m.index);
+                out += esc(gap);
+                const tok = m[0];
+                let cls = '';
+                if (m[1] !== undefined) cls = 'tk-c';
+                else if (m[2] !== undefined) cls = 'tk-s';
+                else if (m[3] !== undefined) cls = 'tk-d';
+                else if (m[4] !== undefined) cls = 'tk-n';
+                else if (CONSTS.has(tok)) cls = 'tk-k2';
+                else if (KEYWORDS.has(tok)) cls = 'tk-k';
+                else if ((prevKw === 'def' || prevKw === 'class') && !gap.trim()) cls = 'tk-f';
+                else if (tok === 'self' || tok === 'cls') cls = 'tk-self';
+                else if (BUILTINS.has(tok)) cls = 'tk-b';
+                else if (src.charAt(TOKEN_RE.lastIndex) === '(') cls = 'tk-fc';
+                prevKw = (m[5] !== undefined && (tok === 'def' || tok === 'class')) ? tok : '';
+                out += cls ? '<span class="' + cls + '">' + esc(tok) + '</span>' : esc(tok);
+                last = TOKEN_RE.lastIndex;
+            }
+            return out + esc(src.slice(last));
+        }
+        /*HL-END*/
+
+        let lineCount = 0, activeNum = 0, lineH = 24, padY = 16;
+
+        function renderHighlight() { hlCode.innerHTML = highlight(editor.value) + ' '; }
+
+        function renderGutter() {
+            const n = editor.value.split('\n').length;
+            if (n !== lineCount) {
+                lineCount = n;
+                let h = '';
+                for (let i = 1; i <= n; i++) h += '<i>' + i + '</i>';
+                gutterInner.innerHTML = h;
+                gutter.style.setProperty('--digits', String(Math.max(2, String(n).length)));
+                activeNum = 0;
+            }
+        }
+
+        function caretInfo() {
+            const pos = editor.selectionStart;
+            const before = editor.value.slice(0, pos);
+            return { ln: before.split('\n').length, col: pos - before.lastIndexOf('\n'), sel: Math.abs(editor.selectionEnd - pos) };
+        }
+
+        function positionActive() {
+            const info = caretInfo();
+            const focused = document.activeElement === editor && editor.selectionStart === editor.selectionEnd;
+            activeLineEl.classList.toggle('on', focused);
+            activeLineEl.style.transform = 'translateY(' + (padY + (info.ln - 1) * lineH - editor.scrollTop) + 'px)';
+            if (info.ln !== activeNum) {
+                const kids = gutterInner.children;
+                if (activeNum && kids[activeNum - 1]) kids[activeNum - 1].classList.remove('on');
+                if (kids[info.ln - 1]) kids[info.ln - 1].classList.add('on');
+                activeNum = info.ln;
+            }
+            sbPos.textContent = 'Ln ' + info.ln + ', Col ' + info.col + (info.sel ? ' (' + info.sel + ' selected)' : '');
+        }
+
+        function syncScroll() {
+            const x = editor.scrollLeft, y = editor.scrollTop;
+            hlCode.style.transform = 'translate(' + (-x) + 'px,' + (-y) + 'px)';
+            gutterInner.style.transform = 'translateY(' + (-y) + 'px)';
+            positionActive();
+        }
+
+        function fullRender() { renderHighlight(); renderGutter(); syncScroll(); }
+
+        /* ---- font size ---- */
+        let fontSize = Math.min(20, Math.max(12, parseInt(store.get('fs', '14'), 10) || 14));
+        function applyFont() {
+            editorBody.style.setProperty('--fs', fontSize + 'px');
+            editorBody.style.removeProperty('--code-lh');
+            const px = parseFloat(getComputedStyle(editor).fontSize) || fontSize;
+            lineH = Math.round(px * 1.7);
+            editorBody.style.setProperty('--code-lh', lineH + 'px');
+            padY = parseFloat(getComputedStyle(editor).paddingTop) || 16;
+            $('#fs-label').textContent = String(fontSize);
+            syncScroll();
+        }
+        $('#fs-down').addEventListener('click', () => { fontSize = Math.max(12, fontSize - 1); store.set('fs', fontSize); applyFont(); });
+        $('#fs-up').addEventListener('click', () => { fontSize = Math.min(20, fontSize + 1); store.set('fs', fontSize); applyFont(); });
+
+        /* ---- editing helpers ---- */
+        function replaceRange(from, to, text) {
+            editor.focus();
+            editor.setSelectionRange(from, to);
+            if (!document.execCommand('insertText', false, text)) {
+                editor.setRangeText(text, from, to, 'end');
+                editor.dispatchEvent(new Event('input', { bubbles: true }));
+            }
+        }
+
+        function setEditorValue(text) {
+            if (finePointer) {
+                editor.focus();
+                editor.select();
+                if (document.execCommand('insertText', false, text)) { editor.setSelectionRange(0, 0); editor.scrollTop = 0; editor.scrollLeft = 0; return; }
+            }
+            editor.value = text;
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            editor.scrollTop = 0; editor.scrollLeft = 0;
+        }
+
+        function toggleComment() {
+            const v = editor.value, s = editor.selectionStart, e = editor.selectionEnd;
+            const effEnd = (e > s && v[e - 1] === '\n') ? e - 1 : e;
+            const ls = v.lastIndexOf('\n', s - 1) + 1;
+            let le = v.indexOf('\n', effEnd);
+            if (le === -1) le = v.length;
+            const lines = v.slice(ls, le).split('\n');
+            const nonEmpty = lines.filter(l => l.trim());
+            const allCommented = nonEmpty.length > 0 && nonEmpty.every(l => /^\s*#/.test(l));
+            let out;
+            if (allCommented) {
+                out = lines.map(l => l.replace(/^(\s*)# ?/, '$1'));
+            } else {
+                const ind = nonEmpty.length ? Math.min.apply(null, nonEmpty.map(l => l.match(/^\s*/)[0].length)) : 0;
+                out = lines.map(l => l.trim() ? l.slice(0, ind) + '# ' + l.slice(ind) : l);
+            }
+            const block = out.join('\n');
+            replaceRange(ls, le, block);
+            editor.setSelectionRange(ls, ls + block.length);
+        }
+
+        let tabEscape = false;
+        editor.addEventListener('blur', () => { tabEscape = false; positionActive(); });
+        editor.addEventListener('focus', positionActive);
+
+        editor.addEventListener('keydown', (e) => {
+            const mod = e.ctrlKey || e.metaKey;
+            if (mod && e.key === 'Enter') { e.preventDefault(); onRunClick(); return; }
+            if (mod && (e.key === 's' || e.key === 'S')) { e.preventDefault(); downloadCode(); return; }
+            if (mod && e.key === '/') { e.preventDefault(); toggleComment(); return; }
+            if (e.isComposing) return;
+            if (e.key === 'Escape') { tabEscape = true; return; }
+
+            const v = editor.value, start = editor.selectionStart, end = editor.selectionEnd;
+
+            if (e.key === 'Tab') {
+                if (tabEscape) return; // Esc then Tab lets keyboard users leave the editor
+                e.preventDefault();
+                if (start === end && !e.shiftKey) { replaceRange(start, end, '    '); return; }
+                const effEnd = (end > start && v[end - 1] === '\n') ? end - 1 : end;
+                const lineStart = v.lastIndexOf('\n', start - 1) + 1;
+                const nl = v.indexOf('\n', effEnd);
+                const lineEnd = nl === -1 ? v.length : nl;
+                const lines = v.slice(lineStart, lineEnd).split('\n');
+                const out = lines.map(l => e.shiftKey ? l.replace(/^( {1,4}|\t)/, '') : '    ' + l);
+                const block = out.join('\n');
+                const delta = block.length - (lineEnd - lineStart);
+                const firstDelta = out[0].length - lines[0].length;
+                replaceRange(lineStart, lineEnd, block);
+                editor.setSelectionRange(Math.max(lineStart, start + firstDelta), Math.max(lineStart, end + delta));
+                return;
+            }
+
+            if (e.key === 'Enter' && !e.shiftKey && !e.altKey) {
+                const lineStart = v.lastIndexOf('\n', start - 1) + 1;
+                const before = v.slice(lineStart, start);
+                const indent = before.match(/^[ \t]*/)[0];
+                const extra = /:\s*(#.*)?$/.test(before) ? '    ' : '';
+                if (indent || extra) { e.preventDefault(); replaceRange(start, end, '\n' + indent + extra); }
+                return;
+            }
+
+            if (e.key === 'Backspace' && start === end && !mod && !e.altKey) {
+                const lineStart = v.lastIndexOf('\n', start - 1) + 1;
+                const before = v.slice(lineStart, start);
+                if (before.length >= 4 && /^ +$/.test(before) && before.length % 4 === 0) {
+                    e.preventDefault(); replaceRange(start - 4, start, '');
+                }
+            }
+        });
+
+        /* ---- autosave ---- */
+        const savedEl = $('#saved');
+        let saveTimer = null, savedHide = null;
+        function scheduleSave() {
+            clearTimeout(saveTimer);
+            saveTimer = setTimeout(() => {
+                store.set('code', editor.value);
+                savedEl.classList.add('show');
+                clearTimeout(savedHide);
+                savedHide = setTimeout(() => savedEl.classList.remove('show'), 1400);
+            }, 500);
+        }
+
+        editor.addEventListener('input', () => { fullRender(); scheduleSave(); });
+        editor.addEventListener('scroll', syncScroll, { passive: true });
+        ['keyup', 'click', 'mouseup', 'select'].forEach(ev => editor.addEventListener(ev, positionActive));
+        document.addEventListener('selectionchange', () => { if (document.activeElement === editor) positionActive(); });
+
+        /* ---- file actions ---- */
+        function downloadCode() {
+            const blob = new Blob([editor.value], { type: 'text/x-python' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob); a.download = 'main.py';
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+            toast('Saved main.py', 'success', 'i-download');
+        }
+        $('#btn-download').addEventListener('click', downloadCode);
+
+        $('#btn-copy').addEventListener('click', async (e) => {
+            const ok = await copyText(editor.value);
+            if (ok) { flashDone(e.currentTarget); toast('Code copied', 'success', 'i-copy'); } else toast('Copy failed', 'error', 'i-x');
+        });
+
+        $('#btn-reset').addEventListener('click', () => {
+            if (editor.value.trim() && editor.value !== DEFAULT_CODE && !window.confirm('Replace your code with the starter template?')) return;
+            setEditorValue(DEFAULT_CODE);
+            toast('Reset to starter code', 'info', 'i-reset');
+        });
+
+        const fileInput = $('#file-input');
+        $('#btn-upload').addEventListener('click', () => fileInput.click());
+        async function openFile(file) {
+            if (!file) return;
+            if (file.size > 1024 * 1024) { toast('File is too large (max 1 MB)', 'error', 'i-x'); return; }
+            try { setEditorValue(await file.text()); toast('Opened ' + file.name, 'success', 'i-upload'); }
+            catch (err) { toast('Could not read that file', 'error', 'i-x'); }
+        }
+        fileInput.addEventListener('change', () => { openFile(fileInput.files[0]); fileInput.value = ''; });
+
+        const dropHint = $('#drop-hint');
+        const codeArea = $('#code-area');
+        ['dragenter', 'dragover'].forEach(ev => codeArea.addEventListener(ev, (e) => {
+            if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) { e.preventDefault(); dropHint.classList.add('on'); }
+        }));
+        ['dragleave', 'drop'].forEach(ev => codeArea.addEventListener(ev, () => dropHint.classList.remove('on')));
+        codeArea.addEventListener('drop', (e) => {
+            if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length) { e.preventDefault(); openFile(e.dataTransfer.files[0]); }
+        });
+
+        /* =================================================================
+           TEMPLATES  (quick-pick strip + searchable gallery)
+           ================================================================= */
+        /*TPL-DATA-START*/
+        const TPL_CATEGORIES = [{"id": "basics", "name": "Basics", "icon": "i-sparkle"}, {"id": "algorithms", "name": "Algorithms", "icon": "i-route"}, {"id": "structures", "name": "Data structures", "icon": "i-layers"}, {"id": "oop", "name": "Objects & classes", "icon": "i-package"}, {"id": "text", "name": "Text & data", "icon": "i-type"}, {"id": "functional", "name": "Functional & async", "icon": "i-zap"}, {"id": "science", "name": "Data science", "icon": "i-chart"}, {"id": "testing", "name": "Testing", "icon": "i-flask"}, {"id": "games", "name": "Games & fun", "icon": "i-gamepad"}];
+        const TEMPLATES = [
+            {"id": "hello-pyramid", "cat": "basics", "title": "Hello, Pyramid", "level": 1, "icon": "i-sparkle", "desc": "Print a greeting and draw a star pyramid with loops.", "tags": ["print", "loops", "f-string"], "needs": [], "featured": true, "stdin": "", "code": "# Welcome to Python Compiler\nname = \"World\"\nprint(f\"Hello, {name}!\")\n\nfor i in range(1, 8):\n    print(\" \" * (7 - i) + \"*\" * (2 * i - 1))\n"},
+            {"id": "input-output", "cat": "basics", "title": "Input & output", "level": 1, "icon": "i-input", "desc": "Read values from the Input tab with input().", "tags": ["input", "stdin"], "needs": [], "featured": true, "stdin": "Ada\n21", "code": "name = input(\"What is your name? \")\nage = int(input(\"How old are you? \"))\n\nprint(f\"Nice to meet you, {name}!\")\nprint(f\"In 10 years you will be {age + 10}.\")\n"},
+            {"id": "fizzbuzz", "cat": "basics", "title": "FizzBuzz", "level": 1, "icon": "i-sparkle", "desc": "The classic interview warm-up, plus a one-liner version.", "tags": ["loops", "functions", "interview"], "needs": [], "featured": true, "stdin": "", "code": "def fizzbuzz(n):\n    if n % 15 == 0:\n        return \"FizzBuzz\"\n    if n % 3 == 0:\n        return \"Fizz\"\n    if n % 5 == 0:\n        return \"Buzz\"\n    return str(n)\n\nfor i in range(1, 21):\n    print(fizzbuzz(i))\n\n# One-liner version\nprint(\", \".join(fizzbuzz(i) for i in range(1, 16)))\n"},
+            {"id": "calculator", "cat": "basics", "title": "Calculator", "level": 1, "icon": "i-input", "desc": "Read two numbers and an operator, with error handling.", "tags": ["input", "dict", "try/except"], "needs": [], "featured": false, "stdin": "12\n*\n7", "code": "import operator\n\nOPS = {\"+\": operator.add, \"-\": operator.sub, \"*\": operator.mul,\n       \"/\": operator.truediv, \"**\": operator.pow}\n\na = float(input(\"First number: \"))\nop = input(\"Operator (+ - * / **): \").strip()\nb = float(input(\"Second number: \"))\n\nif op not in OPS:\n    print(f\"Unknown operator {op!r}\")\nelse:\n    try:\n        print(f\"{a:g} {op} {b:g} = {OPS[op](a, b):g}\")\n    except ZeroDivisionError:\n        print(\"Cannot divide by zero\")\n"},
+            {"id": "guess-number", "cat": "basics", "title": "Number guessing game", "level": 1, "icon": "i-input", "desc": "Guess a seeded secret number; the Input tab holds your guesses.", "tags": ["random", "while", "input"], "needs": [], "featured": false, "stdin": "50\n75\n90\n82", "code": "import random\n\nrandom.seed(42)                 # remove this line for a new number every run\nsecret = random.randint(1, 100)\ntries = 0\n\nprint(\"I'm thinking of a number between 1 and 100.\")\nwhile True:\n    try:\n        guess = int(input(\"Your guess: \"))\n    except EOFError:\n        print(\"\\nOut of guesses - add more lines in the Input tab.\")\n        break\n    except ValueError:\n        print(\"Please type a whole number.\")\n        continue\n    tries += 1\n    if guess < secret:\n        print(\"Too low\")\n    elif guess > secret:\n        print(\"Too high\")\n    else:\n        print(f\"Correct! You got it in {tries} tries.\")\n        break\n"},
+            {"id": "fib-primes", "cat": "algorithms", "title": "Fibonacci & primes", "level": 2, "icon": "i-route", "desc": "Memoised Fibonacci and a prime sieve.", "tags": ["recursion", "cache", "sieve"], "needs": [], "featured": true, "stdin": "", "code": "from functools import lru_cache\n\n@lru_cache(maxsize=None)\ndef fib(n: int) -> int:\n    return n if n < 2 else fib(n - 1) + fib(n - 2)\n\nprint(\"First 15 Fibonacci numbers:\")\nprint([fib(i) for i in range(15)])\nprint(\"fib(90) =\", fib(90))\n\ndef primes(limit):\n    sieve = [True] * (limit + 1)\n    sieve[0:2] = [False, False]\n    for n in range(2, int(limit ** 0.5) + 1):\n        if sieve[n]:\n            sieve[n * n::n] = [False] * len(sieve[n * n::n])\n    return [n for n, ok in enumerate(sieve) if ok]\n\nprint(\"Primes under 60:\", primes(60))\n"},
+            {"id": "sorting", "cat": "algorithms", "title": "Sorting algorithms", "level": 2, "icon": "i-route", "desc": "Bubble, insertion, merge and quick sort, checked and timed.", "tags": ["sorting", "recursion", "timing"], "needs": [], "featured": true, "stdin": "", "code": "import random\nfrom time import perf_counter\n\ndef bubble_sort(a):\n    a = a[:]\n    for i in range(len(a)):\n        swapped = False\n        for j in range(len(a) - 1 - i):\n            if a[j] > a[j + 1]:\n                a[j], a[j + 1] = a[j + 1], a[j]\n                swapped = True\n        if not swapped:\n            break\n    return a\n\ndef insertion_sort(a):\n    a = a[:]\n    for i in range(1, len(a)):\n        key, j = a[i], i - 1\n        while j >= 0 and a[j] > key:\n            a[j + 1] = a[j]\n            j -= 1\n        a[j + 1] = key\n    return a\n\ndef merge_sort(a):\n    if len(a) <= 1:\n        return a\n    mid = len(a) // 2\n    left, right = merge_sort(a[:mid]), merge_sort(a[mid:])\n    out, i, j = [], 0, 0\n    while i < len(left) and j < len(right):\n        if left[i] <= right[j]:\n            out.append(left[i])\n            i += 1\n        else:\n            out.append(right[j])\n            j += 1\n    return out + left[i:] + right[j:]\n\ndef quick_sort(a):\n    if len(a) <= 1:\n        return a\n    pivot = a[len(a) // 2]\n    return (quick_sort([x for x in a if x < pivot])\n            + [x for x in a if x == pivot]\n            + quick_sort([x for x in a if x > pivot]))\n\nrandom.seed(1)\ndata = [random.randint(0, 999) for _ in range(800)]\nexpected = sorted(data)\n\nprint(f\"Sorting {len(data)} numbers\\n\")\nfor fn in (bubble_sort, insertion_sort, merge_sort, quick_sort, sorted):\n    t0 = perf_counter()\n    result = fn(data)\n    ms = (perf_counter() - t0) * 1000\n    status = \"ok \" if list(result) == expected else \"BAD\"\n    print(f\"{status} {fn.__name__:<15} {ms:8.2f} ms\")\n"},
+            {"id": "binary-search", "cat": "algorithms", "title": "Binary search", "level": 1, "icon": "i-route", "desc": "Find items in a sorted list in O(log n) steps.", "tags": ["search", "bisect"], "needs": [], "featured": false, "stdin": "", "code": "from bisect import bisect_left\n\ndef binary_search(items, target):\n    \"\"\"Return (index, steps); index is -1 when the target is missing.\"\"\"\n    lo, hi = 0, len(items) - 1\n    steps = 0\n    while lo <= hi:\n        steps += 1\n        mid = (lo + hi) // 2\n        if items[mid] == target:\n            return mid, steps\n        if items[mid] < target:\n            lo = mid + 1\n        else:\n            hi = mid - 1\n    return -1, steps\n\nnumbers = list(range(0, 2000, 3))        # sorted: 0, 3, 6, ...\nfor target in (999, 1500, 1998, 7):\n    idx, steps = binary_search(numbers, target)\n    print(f\"target={target:<5} index={idx:<4} steps={steps}\")\n\n# The standard library does the same job:\ni = bisect_left(numbers, 999)\nprint(\"bisect_left(999) ->\", i, \"| found:\", numbers[i] == 999)\n"},
+            {"id": "hanoi", "cat": "algorithms", "title": "Tower of Hanoi", "level": 2, "icon": "i-route", "desc": "Recursive solution, with the move list and counts.", "tags": ["recursion"], "needs": [], "featured": false, "stdin": "", "code": "def hanoi(n, source, target, spare, moves):\n    if n == 0:\n        return\n    hanoi(n - 1, source, spare, target, moves)\n    moves.append((n, source, target))\n    hanoi(n - 1, spare, target, source, moves)\n\nmoves = []\nhanoi(3, \"A\", \"C\", \"B\", moves)\nfor step, (disk, src, dst) in enumerate(moves, 1):\n    print(f\"{step}. move disk {disk}: {src} -> {dst}\")\n\nprint()\nfor n in (5, 10, 15):\n    m = []\n    hanoi(n, \"A\", \"C\", \"B\", m)\n    print(f\"{n} disks need {len(m):>6} moves (2^{n} - 1 = {2**n - 1})\")\n"},
+            {"id": "dijkstra", "cat": "algorithms", "title": "Shortest path (Dijkstra)", "level": 3, "icon": "i-route", "desc": "Weighted graph, a heap, and path reconstruction.", "tags": ["graph", "heapq"], "needs": [], "featured": false, "stdin": "", "code": "import heapq\n\ngraph = {\n    \"A\": {\"B\": 4, \"C\": 2},\n    \"B\": {\"A\": 4, \"C\": 1, \"D\": 5},\n    \"C\": {\"A\": 2, \"B\": 1, \"D\": 8, \"E\": 10},\n    \"D\": {\"B\": 5, \"C\": 8, \"E\": 2, \"F\": 6},\n    \"E\": {\"C\": 10, \"D\": 2, \"F\": 3},\n    \"F\": {\"D\": 6, \"E\": 3},\n}\n\ndef dijkstra(graph, start):\n    dist = {node: float(\"inf\") for node in graph}\n    prev = {}\n    dist[start] = 0\n    heap = [(0, start)]\n    while heap:\n        d, node = heapq.heappop(heap)\n        if d > dist[node]:\n            continue\n        for neighbour, weight in graph[node].items():\n            nd = d + weight\n            if nd < dist[neighbour]:\n                dist[neighbour] = nd\n                prev[neighbour] = node\n                heapq.heappush(heap, (nd, neighbour))\n    return dist, prev\n\ndef path_to(prev, target):\n    path = [target]\n    while path[-1] in prev:\n        path.append(prev[path[-1]])\n    return path[::-1]\n\ndist, prev = dijkstra(graph, \"A\")\nfor node in sorted(graph):\n    print(f\"A -> {node}: distance {dist[node]:>2}  path {' > '.join(path_to(prev, node))}\")\n"},
+            {"id": "n-queens", "cat": "algorithms", "title": "N-Queens", "level": 3, "icon": "i-route", "desc": "Backtracking: count solutions and draw one board.", "tags": ["backtracking", "recursion"], "needs": [], "featured": false, "stdin": "", "code": "def solve(n):\n    solutions = []\n    cols = []\n\n    def place(row):\n        if row == n:\n            solutions.append(cols[:])\n            return\n        for c in range(n):\n            if all(c != pc and abs(c - pc) != row - pr for pr, pc in enumerate(cols)):\n                cols.append(c)\n                place(row + 1)\n                cols.pop()\n\n    place(0)\n    return solutions\n\nfor n in range(4, 9):\n    print(f\"{n}-queens: {len(solve(n)):>3} solutions\")\n\nprint(\"\\nFirst solution for 6 queens:\")\nfirst = solve(6)[0]\nfor r in range(6):\n    print(\" \".join(\"Q\" if first[r] == c else \".\" for c in range(6)))\n"},
+            {"id": "stack-queue", "cat": "structures", "title": "Stack, queue & brackets", "level": 1, "icon": "i-layers", "desc": "LIFO vs FIFO, and a balanced-brackets checker.", "tags": ["stack", "queue", "deque"], "needs": [], "featured": false, "stdin": "", "code": "from collections import deque\n\n# Stack (LIFO) - a plain list works well\nstack = []\nfor item in (\"a\", \"b\", \"c\"):\n    stack.append(item)\nprint(\"stack:\", stack, \"pop ->\", stack.pop(), \"| now\", stack)\n\n# Queue (FIFO) - use deque for O(1) pops from the left\nqueue = deque()\nfor item in (\"x\", \"y\", \"z\"):\n    queue.append(item)\nprint(\"queue:\", list(queue), \"popleft ->\", queue.popleft(), \"| now\", list(queue))\n\n# Classic use of a stack: check balanced brackets\ndef balanced(text):\n    pairs = {\")\": \"(\", \"]\": \"[\", \"}\": \"{\"}\n    seen = []\n    for ch in text:\n        if ch in \"([{\":\n            seen.append(ch)\n        elif ch in pairs:\n            if not seen or seen.pop() != pairs[ch]:\n                return False\n    return not seen\n\nfor s in (\"(a + b) * [c - {d}]\", \"(]\", \"((())\", \"\"):\n    print(f\"{s!r:<24} balanced: {balanced(s)}\")\n"},
+            {"id": "linked-list", "cat": "structures", "title": "Linked list", "level": 2, "icon": "i-layers", "desc": "A singly linked list with append, reverse and iteration.", "tags": ["class", "iterator"], "needs": [], "featured": false, "stdin": "", "code": "class Node:\n    def __init__(self, value):\n        self.value = value\n        self.next = None\n\nclass LinkedList:\n    def __init__(self, items=()):\n        self.head = None\n        self._size = 0\n        for item in items:\n            self.append(item)\n\n    def append(self, value):\n        node = Node(value)\n        if not self.head:\n            self.head = node\n        else:\n            cur = self.head\n            while cur.next:\n                cur = cur.next\n            cur.next = node\n        self._size += 1\n\n    def reverse(self):\n        prev, cur = None, self.head\n        while cur:\n            cur.next, prev, cur = prev, cur, cur.next\n        self.head = prev\n\n    def __iter__(self):\n        cur = self.head\n        while cur:\n            yield cur.value\n            cur = cur.next\n\n    def __len__(self):\n        return self._size\n\n    def __repr__(self):\n        return \" -> \".join(map(str, self)) + \" -> None\"\n\nll = LinkedList([1, 2, 3, 4])\nprint(ll, f\"(length {len(ll)})\")\nll.append(5)\nll.reverse()\nprint(\"reversed:\", ll)\nprint(\"sum:\", sum(ll), \"| max:\", max(ll))\n"},
+            {"id": "bst", "cat": "structures", "title": "Binary search tree", "level": 2, "icon": "i-layers", "desc": "Insert, search and in-order traversal.", "tags": ["tree", "recursion", "generator"], "needs": [], "featured": false, "stdin": "", "code": "class BST:\n    class _Node:\n        def __init__(self, key):\n            self.key, self.left, self.right = key, None, None\n\n    def __init__(self):\n        self.root = None\n\n    def insert(self, key):\n        if self.root is None:\n            self.root = self._Node(key)\n            return\n        cur = self.root\n        while True:\n            if key == cur.key:\n                return\n            side = \"left\" if key < cur.key else \"right\"\n            nxt = getattr(cur, side)\n            if nxt is None:\n                setattr(cur, side, self._Node(key))\n                return\n            cur = nxt\n\n    def __contains__(self, key):\n        cur = self.root\n        while cur:\n            if key == cur.key:\n                return True\n            cur = cur.left if key < cur.key else cur.right\n        return False\n\n    def inorder(self):\n        yield from self._inorder(self.root)\n\n    def _inorder(self, node):\n        if node:\n            yield from self._inorder(node.left)\n            yield node.key\n            yield from self._inorder(node.right)\n\n    def height(self):\n        def h(node):\n            return 0 if node is None else 1 + max(h(node.left), h(node.right))\n        return h(self.root)\n\ntree = BST()\nfor key in (50, 30, 70, 20, 40, 60, 80, 35, 65):\n    tree.insert(key)\n\nprint(\"sorted keys:\", list(tree.inorder()))\nprint(\"height     :\", tree.height())\nprint(\"40 in tree?\", 40 in tree, \"| 99 in tree?\", 99 in tree)\n"},
+            {"id": "hashmaps", "cat": "structures", "title": "Counter & defaultdict", "level": 1, "icon": "i-layers", "desc": "Word counts, grouping by length, and anagram groups.", "tags": ["dict", "collections"], "needs": [], "featured": false, "stdin": "", "code": "from collections import Counter, defaultdict\n\ntext = \"\"\"the quick brown fox jumps over the lazy dog\nthe dog barks and the fox runs away\"\"\"\nwords = text.split()\n\ncounts = Counter(words)\nprint(\"Top 3 words:\", counts.most_common(3))\n\nby_length = defaultdict(list)\nfor w in sorted(set(words)):\n    by_length[len(w)].append(w)\nfor length in sorted(by_length):\n    print(f\"{length} letters: {by_length[length]}\")\n\n# Group anagrams with a sorted-letters key\ngroups = defaultdict(list)\nfor w in [\"listen\", \"silent\", \"enlist\", \"google\", \"gogole\", \"cat\", \"act\", \"tac\"]:\n    groups[\"\".join(sorted(w))].append(w)\nprint([g for g in groups.values() if len(g) > 1])\n"},
+            {"id": "dataclasses", "cat": "oop", "title": "Classes & dataclasses", "level": 2, "icon": "i-package", "desc": "Objects, errors and try/except with a bank account.", "tags": ["dataclass", "exceptions"], "needs": [], "featured": false, "stdin": "", "code": "from dataclasses import dataclass, field\n\n@dataclass\nclass Account:\n    owner: str\n    balance: float = 0.0\n    history: list = field(default_factory=list)\n\n    def deposit(self, amount):\n        self.balance += amount\n        self.history.append((\"deposit\", amount))\n\n    def withdraw(self, amount):\n        if amount > self.balance:\n            raise ValueError(\"Insufficient funds\")\n        self.balance -= amount\n        self.history.append((\"withdraw\", amount))\n\nacct = Account(\"Priya\", 1000)\nacct.deposit(500)\nacct.withdraw(200)\nprint(acct)\n\ntry:\n    acct.withdraw(10_000)\nexcept ValueError as e:\n    print(\"Error:\", e)\n"},
+            {"id": "abc-shapes", "cat": "oop", "title": "Inheritance & polymorphism", "level": 2, "icon": "i-package", "desc": "Abstract base classes with Circle, Rectangle and Square.", "tags": ["abc", "inheritance", "super"], "needs": [], "featured": false, "stdin": "", "code": "from abc import ABC, abstractmethod\nfrom math import pi\n\nclass Shape(ABC):\n    @abstractmethod\n    def area(self): ...\n\n    @abstractmethod\n    def perimeter(self): ...\n\n    def describe(self):\n        return f\"{self.__class__.__name__}: area={self.area():.2f}, perimeter={self.perimeter():.2f}\"\n\nclass Circle(Shape):\n    def __init__(self, r):\n        self.r = r\n\n    def area(self):\n        return pi * self.r ** 2\n\n    def perimeter(self):\n        return 2 * pi * self.r\n\nclass Rectangle(Shape):\n    def __init__(self, w, h):\n        self.w, self.h = w, h\n\n    def area(self):\n        return self.w * self.h\n\n    def perimeter(self):\n        return 2 * (self.w + self.h)\n\nclass Square(Rectangle):\n    def __init__(self, side):\n        super().__init__(side, side)\n\nshapes = [Circle(1.5), Rectangle(3, 4), Square(2.5)]\nfor s in shapes:\n    print(s.describe())\n\nprint(\"Largest:\", max(shapes, key=lambda s: s.area()).__class__.__name__)\n\ntry:\n    Shape()\nexcept TypeError as e:\n    print(\"Cannot instantiate:\", e)\n"},
+            {"id": "enum-state", "cat": "oop", "title": "Enum state machine", "level": 2, "icon": "i-package", "desc": "A vending machine driven by an Enum and a transition table.", "tags": ["enum", "state machine"], "needs": [], "featured": false, "stdin": "", "code": "from enum import Enum, auto\n\nclass State(Enum):\n    IDLE = auto()\n    HAS_COIN = auto()\n    SELECTED = auto()\n    DISPENSING = auto()\n\nTRANSITIONS = {\n    (State.IDLE, \"coin\"): State.HAS_COIN,\n    (State.HAS_COIN, \"choose\"): State.SELECTED,\n    (State.SELECTED, \"confirm\"): State.DISPENSING,\n    (State.DISPENSING, \"take\"): State.IDLE,\n}\n\nclass VendingMachine:\n    def __init__(self):\n        self.state = State.IDLE\n\n    def send(self, event):\n        nxt = TRANSITIONS.get((self.state, event))\n        if nxt is None:\n            print(f\"  ! '{event}' is not allowed in {self.state.name}\")\n        else:\n            print(f\"  {self.state.name} --{event}--> {nxt.name}\")\n            self.state = nxt\n\nmachine = VendingMachine()\nfor event in [\"choose\", \"coin\", \"choose\", \"confirm\", \"take\", \"take\"]:\n    machine.send(event)\nprint(\"final state:\", machine.state)\n"},
+            {"id": "decorators", "cat": "oop", "title": "Decorators & context managers", "level": 3, "icon": "i-package", "desc": "A timer, a retry decorator and a with-block helper.", "tags": ["decorator", "contextlib", "closure"], "needs": [], "featured": false, "stdin": "", "code": "import time\nfrom contextlib import contextmanager\nfrom functools import wraps\n\ndef timed(fn):\n    @wraps(fn)\n    def wrapper(*args, **kwargs):\n        start = time.perf_counter()\n        result = fn(*args, **kwargs)\n        print(f\"[timed] {fn.__name__} took {(time.perf_counter() - start) * 1000:.2f} ms\")\n        return result\n    return wrapper\n\ndef retry(times=3):\n    def decorator(fn):\n        @wraps(fn)\n        def wrapper(*args, **kwargs):\n            for attempt in range(1, times + 1):\n                try:\n                    return fn(*args, **kwargs)\n                except ValueError as e:\n                    print(f\"[retry] attempt {attempt} failed: {e}\")\n            raise RuntimeError(f\"{fn.__name__} failed after {times} attempts\")\n        return wrapper\n    return decorator\n\ncalls = {\"n\": 0}\n\n@retry(times=3)\ndef flaky():\n    calls[\"n\"] += 1\n    if calls[\"n\"] < 3:\n        raise ValueError(\"not yet\")\n    return \"success\"\n\n@timed\ndef slow_sum(n):\n    return sum(i * i for i in range(n))\n\nprint(flaky())\nprint(slow_sum(200_000))\n\n@contextmanager\ndef section(title):\n    print(f\"--- {title} ---\")\n    try:\n        yield\n    finally:\n        print(\"--- done ---\")\n\nwith section(\"context manager\"):\n    print(\"inside the with-block\")\n"},
+            {"id": "regex", "cat": "text", "title": "Regex extractor", "level": 2, "icon": "i-type", "desc": "Pull emails, dates and prices out of messy text.", "tags": ["re", "regex"], "needs": [], "featured": false, "stdin": "", "code": "import re\n\ntext = \"\"\"\nContact: ada@example.com, support@my-site.org\nCall +91 98765 43210 or (555) 123-4567.\nDates: 2026-11-12, 03/04/2025 and 1999-12-31.\nPrices: $19.99, $5, $1,250.00\n\"\"\"\n\nemails = re.findall(r\"[\\w.+-]+@[\\w-]+\\.[\\w.-]+\", text)\nprint(\"emails:\", emails)\n\ndates = re.findall(r\"\\b\\d{4}-\\d{2}-\\d{2}\\b\", text)\nprint(\"ISO dates:\", dates)\n\nfor m in re.finditer(r\"(?P<year>\\d{4})-(?P<month>\\d{2})-(?P<day>\\d{2})\", text):\n    print(f\"  {m['day']}.{m['month']}.{m['year']}\")\n\nprices = [float(p.replace(\",\", \"\")) for p in re.findall(r\"\\$([\\d,]+(?:\\.\\d+)?)\", text)]\nprint(\"prices:\", prices, \"| total:\", round(sum(prices), 2))\n\nprint(re.sub(r\"\\d\", \"#\", \"PIN 4821 and 77\"))\n"},
+            {"id": "text-tools", "cat": "text", "title": "Palindromes, anagrams & ciphers", "level": 1, "icon": "i-type", "desc": "Everyday string tricks, including a Caesar cipher.", "tags": ["strings", "cipher"], "needs": [], "featured": false, "stdin": "", "code": "import string\n\ndef is_palindrome(s):\n    cleaned = [c.lower() for c in s if c.isalnum()]\n    return cleaned == cleaned[::-1]\n\ndef are_anagrams(a, b):\n    norm = lambda s: sorted(c.lower() for c in s if c.isalpha())\n    return norm(a) == norm(b)\n\ndef caesar(text, shift):\n    lower = string.ascii_lowercase\n    upper = string.ascii_uppercase\n    table = str.maketrans(lower + upper,\n                          lower[shift:] + lower[:shift] + upper[shift:] + upper[:shift])\n    return text.translate(table)\n\nfor s in (\"A man, a plan, a canal: Panama\", \"Hello\"):\n    print(f\"{s!r} palindrome? {is_palindrome(s)}\")\n\nprint(\"listen / Silent:\", are_anagrams(\"listen\", \"Silent\"))\n\nsecret = caesar(\"Meet me at noon\", 3)\nprint(secret, \"->\", caesar(secret, -3))\n\nsentence = \"Python makes text processing pleasant\"\nprint(\"vowels:\", sum(c in \"aeiou\" for c in sentence.lower()))\nprint(\"title:\", sentence.title(), \"| words:\", len(sentence.split()))\nprint(\"reversed words:\", \" \".join(reversed(sentence.split())))\n"},
+            {"id": "json-tools", "cat": "text", "title": "JSON toolkit", "level": 1, "icon": "i-type", "desc": "Parse, query, update and pretty-print JSON.", "tags": ["json", "dict"], "needs": [], "featured": false, "stdin": "", "code": "import json\n\nraw = \"\"\"\n{\"team\": \"Pythonistas\",\n \"members\": [\n   {\"name\": \"Ada\", \"skills\": [\"math\", \"python\"], \"age\": 36},\n   {\"name\": \"Linus\", \"skills\": [\"c\", \"git\"], \"age\": 55},\n   {\"name\": \"Guido\", \"skills\": [\"python\"], \"age\": 70}\n ]}\n\"\"\"\ndata = json.loads(raw)\nprint(\"team:\", data[\"team\"], \"| members:\", len(data[\"members\"]))\n\npython_people = [m[\"name\"] for m in data[\"members\"] if \"python\" in m[\"skills\"]]\nprint(\"know python:\", python_people)\n\naverage_age = sum(m[\"age\"] for m in data[\"members\"]) / len(data[\"members\"])\nprint(f\"average age: {average_age:.1f}\")\n\noldest = max(data[\"members\"], key=lambda m: m[\"age\"])\ndata[\"oldest\"] = oldest[\"name\"]\n\nprint(json.dumps(data, indent=2, sort_keys=True)[:260], \"...\")\nprint(json.dumps({\"ok\": True, \"items\": (1, 2), \"none\": None}))\n"},
+            {"id": "csv-report", "cat": "text", "title": "CSV report", "level": 2, "icon": "i-type", "desc": "Read CSV text, total revenue per region, write CSV back.", "tags": ["csv", "io", "report"], "needs": [], "featured": false, "stdin": "", "code": "import csv\nimport io\nfrom collections import defaultdict\n\nCSV_DATA = \"\"\"region,product,units,price\nNorth,Pen,120,1.5\nNorth,Notebook,80,4.0\nSouth,Pen,200,1.5\nSouth,Lamp,15,22.0\nEast,Notebook,60,4.0\nEast,Lamp,25,22.0\n\"\"\"\n\nrows = list(csv.DictReader(io.StringIO(CSV_DATA)))\nrevenue = defaultdict(float)\nfor row in rows:\n    revenue[row[\"region\"]] += int(row[\"units\"]) * float(row[\"price\"])\n\nprint(f\"{'Region':<8}{'Revenue':>10}\")\nprint(\"-\" * 18)\nfor region, total in sorted(revenue.items(), key=lambda kv: kv[1], reverse=True):\n    print(f\"{region:<8}{total:>10.2f}\")\nprint(\"-\" * 18)\nprint(f\"{'Total':<8}{sum(revenue.values()):>10.2f}\")\n\nout = io.StringIO()\nwriter = csv.writer(out, lineterminator=\"\\n\")\nwriter.writerow([\"region\", \"revenue\"])\nwriter.writerows(sorted(revenue.items()))\nprint(\"\\nGenerated CSV:\\n\" + out.getvalue())\n"},
+            {"id": "async-gather", "cat": "functional", "title": "Async / await", "level": 2, "icon": "i-clock", "desc": "Run coroutines together with asyncio.gather.", "tags": ["asyncio", "gather"], "needs": [], "featured": true, "stdin": "", "code": "import asyncio\n\nasync def worker(name, delay):\n    await asyncio.sleep(delay)\n    print(f\"{name} finished after {delay}s\")\n    return name.upper()\n\nasync def main():\n    results = await asyncio.gather(\n        worker(\"alpha\", 0.6),\n        worker(\"beta\", 0.2),\n        worker(\"gamma\", 0.4),\n    )\n    print(\"Results:\", results)\n\nasyncio.run(main())\n"},
+            {"id": "async-queue", "cat": "functional", "title": "Async producer / consumer", "level": 3, "icon": "i-clock", "desc": "An asyncio.Queue with two workers and a timeout.", "tags": ["asyncio", "queue", "timeout"], "needs": [], "featured": false, "stdin": "", "code": "import asyncio\nimport random\n\nrandom.seed(3)\n\nasync def producer(queue, n):\n    for i in range(1, n + 1):\n        await asyncio.sleep(0.05)\n        await queue.put(i)\n        print(f\"produced job {i}\")\n    await queue.put(None)             # sentinel: no more work\n\nasync def consumer(queue, name):\n    done = []\n    while True:\n        job = await queue.get()\n        if job is None:\n            await queue.put(None)     # let the other consumer stop too\n            return done\n        await asyncio.sleep(random.uniform(0.05, 0.15))\n        print(f\"  {name} finished job {job}\")\n        done.append(job)\n\nasync def main():\n    queue = asyncio.Queue(maxsize=3)\n    results = await asyncio.gather(\n        producer(queue, 6),\n        consumer(queue, \"worker-1\"),\n        consumer(queue, \"worker-2\"),\n    )\n    print(\"worker-1 did\", results[1], \"| worker-2 did\", results[2])\n\n    try:\n        await asyncio.wait_for(asyncio.sleep(1), timeout=0.1)\n    except asyncio.TimeoutError:\n        print(\"wait_for timed out as expected\")\n\nasyncio.run(main())\n"},
+            {"id": "generators", "cat": "functional", "title": "Generators & itertools", "level": 2, "icon": "i-zap", "desc": "Lazy sequences, yield from, groupby, combinations.", "tags": ["generator", "itertools"], "needs": [], "featured": false, "stdin": "", "code": "import itertools\n\ndef countdown(n):\n    while n > 0:\n        yield n\n        n -= 1\n\ndef fib():\n    a, b = 0, 1\n    while True:\n        yield a\n        a, b = b, a + b\n\nprint(\"countdown:\", list(countdown(5)))\nprint(\"first 10 fib:\", list(itertools.islice(fib(), 10)))\n\ndef flatten(nested):\n    for item in nested:\n        if isinstance(item, list):\n            yield from flatten(item)\n        else:\n            yield item\n\nprint(\"flatten:\", list(flatten([1, [2, [3, 4]], [[5]], 6])))\n\nprint(\"pairs:\", list(itertools.combinations(\"ABC\", 2)))\nprint(\"grid :\", list(itertools.product([0, 1], repeat=2)))\nprint(\"perms:\", len(list(itertools.permutations(range(4)))))\n\nwords = [\"apple\", \"avocado\", \"banana\", \"blueberry\", \"cherry\"]\nfor letter, group in itertools.groupby(words, key=lambda w: w[0]):\n    print(letter, list(group))\n\nprint(\"running totals:\", list(itertools.accumulate([1, 2, 3, 4, 5])))\nprint(\"chained:\", list(itertools.chain(\"ab\", [1, 2], (True,))))\n"},
+            {"id": "functools", "cat": "functional", "title": "Comprehensions & functools", "level": 2, "icon": "i-zap", "desc": "map/filter/reduce, partial, and lru_cache on Collatz chains.", "tags": ["functools", "comprehension", "cache"], "needs": [], "featured": false, "stdin": "", "code": "from functools import reduce, partial, lru_cache\nfrom operator import mul\n\nnums = [3, 1, 4, 1, 5, 9, 2, 6]\n\nsquares = [n * n for n in nums if n % 2 == 1]\nlookup = {n: n ** 2 for n in set(nums)}\nunique_sorted = sorted({n for n in nums})\nprint(\"odd squares:\", squares)\nprint(\"lookup:\", dict(sorted(lookup.items())))\nprint(\"unique sorted:\", unique_sorted)\n\nprint(\"product:\", reduce(mul, nums))\nprint(\"map/filter:\", list(map(str, filter(lambda n: n > 3, nums))))\nprint(\"zip:\", list(zip(\"abc\", nums)))\nprint(\"enumerate:\", [(i, c) for i, c in enumerate(\"xyz\", start=1)])\n\npower_of_two = partial(pow, 2)\nprint(\"2^10 =\", power_of_two(10))\n\n@lru_cache(maxsize=None)\ndef collatz_len(n):\n    return 1 if n == 1 else 1 + collatz_len(n // 2 if n % 2 == 0 else 3 * n + 1)\n\nbest = max(range(1, 10000), key=collatz_len)\nprint(\"longest Collatz chain under 10000 starts at\", best, \"with\", collatz_len(best), \"steps\")\nprint(collatz_len.cache_info())\n"},
+            {"id": "numpy-basics", "cat": "science", "title": "NumPy basics", "level": 2, "icon": "i-grid", "desc": "Random data, statistics and linear algebra.", "tags": ["numpy", "linear algebra"], "needs": ["numpy"], "featured": false, "stdin": "", "code": "import numpy as np\n\nrng = np.random.default_rng(42)\ndata = rng.normal(loc=50, scale=10, size=1000)\n\nprint(\"mean   :\", round(data.mean(), 2))\nprint(\"std    :\", round(data.std(), 2))\nprint(\"min/max:\", round(data.min(), 1), round(data.max(), 1))\n\nm = np.array([[2, 1], [1, 3]])\nprint(m)\nprint(\"det     :\", round(np.linalg.det(m), 4))\nprint(\"inverse :\", np.linalg.inv(m).round(3).tolist())\n"},
+            {"id": "pandas-table", "cat": "science", "title": "Pandas table", "level": 2, "icon": "i-database", "desc": "Build a DataFrame, add a column, sort and sum.", "tags": ["pandas", "dataframe"], "needs": ["pandas"], "featured": false, "stdin": "", "code": "import pandas as pd\n\ndf = pd.DataFrame({\n    \"product\": [\"Pen\", \"Notebook\", \"Bag\", \"Bottle\", \"Lamp\"],\n    \"price\": [10, 45, 350, 120, 499],\n    \"units\": [500, 320, 80, 150, 40],\n})\ndf[\"revenue\"] = df.price * df.units\n\nprint(df.sort_values(\"revenue\", ascending=False).to_string(index=False))\nprint()\nprint(\"Total revenue:\", df.revenue.sum())\n"},
+            {"id": "matplotlib-plot", "cat": "science", "title": "Matplotlib plot", "level": 2, "icon": "i-chart", "desc": "Two waves with a filled area. Shows up in the Plots tab.", "tags": ["matplotlib", "plot"], "needs": ["numpy", "matplotlib"], "featured": true, "stdin": "", "code": "import numpy as np\nimport matplotlib.pyplot as plt\n\nx = np.linspace(0, 4 * np.pi, 400)\nfig, ax = plt.subplots(figsize=(7, 4))\nax.plot(x, np.sin(x), label=\"sin(x)\", color=\"#4d43fe\", linewidth=2.5)\nax.plot(x, np.cos(x), label=\"cos(x)\", color=\"#f79009\", linewidth=2.5)\nax.fill_between(x, np.sin(x), alpha=0.12, color=\"#4d43fe\")\nax.set_title(\"Waves in the browser\")\nax.grid(alpha=0.25)\nax.legend()\nplt.show()\n\nprint(\"Plot ready - open the Plots tab\")\n"},
+            {"id": "statistics", "cat": "science", "title": "Statistics without NumPy", "level": 1, "icon": "i-chart", "desc": "Mean, median, quartiles and an ASCII histogram.", "tags": ["statistics", "histogram"], "needs": [], "featured": false, "stdin": "", "code": "import random\nimport statistics as st\n\nrandom.seed(11)\nscores = [round(random.gauss(72, 12)) for _ in range(40)]\nscores = [max(40, min(99, s)) for s in scores]      # keep scores between 40 and 99\n\nprint(\"scores:\", scores[:10], \"...\")\nprint(f\"mean     : {st.mean(scores):.2f}\")\nprint(f\"median   : {st.median(scores)}\")\nprint(f\"mode     : {st.mode(scores)}\")\nprint(f\"stdev    : {st.stdev(scores):.2f}\")\nprint(\"quartiles:\", st.quantiles(scores, n=4))\n\nprint(\"\\nHistogram\")\nfor low in range(40, 100, 10):\n    count = sum(low <= s < low + 10 for s in scores)\n    print(f\"{low:>3}-{low + 9:<3} {'#' * count} {count}\")\n"},
+            {"id": "monte-carlo-pi", "cat": "science", "title": "Monte Carlo estimate of pi", "level": 3, "icon": "i-chart", "desc": "Random points in a square, plotted in the Plots tab.", "tags": ["numpy", "random", "plot"], "needs": ["numpy", "matplotlib"], "featured": false, "stdin": "", "code": "import numpy as np\nimport matplotlib.pyplot as plt\n\nrng = np.random.default_rng(7)\nn = 4000\nx, y = rng.random(n), rng.random(n)\ninside = x**2 + y**2 <= 1.0\n\npi_estimate = 4 * inside.mean()\nprint(f\"{n} points -> pi is about {pi_estimate:.4f}  (error {abs(pi_estimate - np.pi):.4f})\")\n\nfig, ax = plt.subplots(figsize=(5, 5))\nax.scatter(x[inside], y[inside], s=4, color=\"#4d43fe\", label=\"inside\")\nax.scatter(x[~inside], y[~inside], s=4, color=\"#f79009\", label=\"outside\")\ntheta = np.linspace(0, np.pi / 2, 100)\nax.plot(np.cos(theta), np.sin(theta), color=\"black\", linewidth=1)\nax.set_aspect(\"equal\")\nax.set_title(f\"Monte Carlo estimate of pi = {pi_estimate:.3f}\")\nax.legend(loc=\"upper right\")\nplt.show()\n"},
+            {"id": "unittest-basics", "cat": "testing", "title": "unittest: first tests", "level": 1, "icon": "i-flask", "desc": "TestCase, setUp and the common assert methods.", "tags": ["unittest", "assert", "setUp"], "needs": [], "featured": true, "stdin": "", "code": "import sys\nimport unittest\n\ndef add(a, b):\n    return a + b\n\ndef is_even(n):\n    return n % 2 == 0\n\nclass Stack:\n    def __init__(self):\n        self._items = []\n\n    def push(self, item):\n        self._items.append(item)\n\n    def pop(self):\n        return self._items.pop()\n\n    def __len__(self):\n        return len(self._items)\n\nclass TestMath(unittest.TestCase):\n    def test_add(self):\n        self.assertEqual(add(2, 3), 5)\n        self.assertEqual(add(-1, 1), 0)\n\n    def test_is_even(self):\n        self.assertTrue(is_even(10))\n        self.assertFalse(is_even(7))\n\nclass TestStack(unittest.TestCase):\n    def setUp(self):\n        self.stack = Stack()          # runs before every test\n\n    def test_push_and_len(self):\n        self.stack.push(\"a\")\n        self.assertEqual(len(self.stack), 1)\n\n    def test_pop_returns_last_item(self):\n        self.stack.push(1)\n        self.stack.push(2)\n        self.assertEqual(self.stack.pop(), 2)\n\n    def test_pop_empty_raises(self):\n        with self.assertRaises(IndexError):\n            self.stack.pop()\n\n\nif __name__ == \"__main__\":\n    runner = unittest.TextTestRunner(stream=sys.stdout, verbosity=2)\n    unittest.main(argv=[\"main\"], testRunner=runner)   # exits with 1 if any test fails\n"},
+            {"id": "unittest-subtests", "cat": "testing", "title": "unittest: tables & exceptions", "level": 2, "icon": "i-flask", "desc": "subTest, assertRaises, assertAlmostEqual, skip and expectedFailure.", "tags": ["unittest", "subTest", "assertRaises"], "needs": [], "featured": false, "stdin": "", "code": "import math\nimport sys\nimport unittest\n\ndef clamp(value, low, high):\n    if low > high:\n        raise ValueError(\"low must be <= high\")\n    return max(low, min(value, high))\n\ndef slugify(text):\n    return \"-\".join(text.lower().split())\n\ndef circle_area(r):\n    if r < 0:\n        raise ValueError(\"radius cannot be negative\")\n    return math.pi * r * r\n\nclass TestHelpers(unittest.TestCase):\n    def test_clamp_table(self):\n        cases = [(5, 0, 10, 5), (-3, 0, 10, 0), (42, 0, 10, 10), (0, 0, 0, 0)]\n        for value, low, high, expected in cases:\n            with self.subTest(value=value, low=low, high=high):\n                self.assertEqual(clamp(value, low, high), expected)\n\n    def test_clamp_rejects_bad_range(self):\n        with self.assertRaises(ValueError) as ctx:\n            clamp(1, 10, 0)\n        self.assertIn(\"low must be\", str(ctx.exception))\n\n    def test_slugify(self):\n        cases = {\"Hello World\": \"hello-world\", \"  Many   spaces \": \"many-spaces\", \"\": \"\"}\n        for text, expected in cases.items():\n            with self.subTest(text=text):\n                self.assertEqual(slugify(text), expected)\n\n    def test_circle_area(self):\n        self.assertAlmostEqual(circle_area(1), 3.14159, places=4)\n        self.assertAlmostEqual(circle_area(2), 4 * math.pi)\n        with self.assertRaises(ValueError):\n            circle_area(-1)\n\n    @unittest.skip(\"example of a skipped test\")\n    def test_not_ready(self):\n        self.fail(\"never runs\")\n\n    @unittest.expectedFailure\n    def test_known_bug(self):\n        self.assertEqual(slugify(\"Café Olé\"), \"cafe-ole\")   # accents are not handled yet\n\n\nif __name__ == \"__main__\":\n    runner = unittest.TextTestRunner(stream=sys.stdout, verbosity=2)\n    unittest.main(argv=[\"main\"], testRunner=runner)   # exits with 1 if any test fails\n"},
+            {"id": "unittest-mock", "cat": "testing", "title": "unittest.mock: fake the outside world", "level": 3, "icon": "i-flask", "desc": "Patch a network call and use MagicMock to isolate your code.", "tags": ["unittest", "mock", "patch"], "needs": [], "featured": false, "stdin": "", "code": "import sys\nimport unittest\nfrom unittest import mock\n\n# --- code under test -------------------------------------------------\ndef fetch_price(symbol):\n    \"\"\"Pretend this calls a web API (it cannot run in the browser).\"\"\"\n    raise RuntimeError(\"network not available\")\n\ndef portfolio_value(holdings):\n    return sum(qty * fetch_price(symbol) for symbol, qty in holdings.items())\n\nclass Greeter:\n    def __init__(self, clock):\n        self.clock = clock\n\n    def greet(self, name):\n        hour = self.clock.hour()\n        part = \"morning\" if hour < 12 else \"afternoon\" if hour < 18 else \"evening\"\n        return f\"Good {part}, {name}!\"\n\n# --- tests -------------------------------------------------------------\nclass TestWithMocks(unittest.TestCase):\n    @mock.patch(f\"{__name__}.fetch_price\")\n    def test_portfolio_value(self, fake_fetch):\n        fake_fetch.side_effect = lambda symbol: {\"AAPL\": 200.0, \"MSFT\": 400.0}[symbol]\n        total = portfolio_value({\"AAPL\": 2, \"MSFT\": 1})\n        self.assertEqual(total, 800.0)\n        self.assertEqual(fake_fetch.call_count, 2)\n        fake_fetch.assert_any_call(\"AAPL\")\n\n    def test_greeter_with_magicmock(self):\n        clock = mock.MagicMock()\n        clock.hour.return_value = 9\n        self.assertEqual(Greeter(clock).greet(\"Ada\"), \"Good morning, Ada!\")\n        clock.hour.return_value = 20\n        self.assertEqual(Greeter(clock).greet(\"Ada\"), \"Good evening, Ada!\")\n        clock.hour.assert_called()\n\n    def test_error_path(self):\n        with self.assertRaises(RuntimeError):\n            portfolio_value({\"AAPL\": 1})\n\n    def test_patch_object_context(self):\n        with mock.patch.object(Greeter, \"greet\", return_value=\"hi\") as fake:\n            self.assertEqual(Greeter(None).greet(\"x\"), \"hi\")\n            fake.assert_called_once_with(\"x\")\n\n\nif __name__ == \"__main__\":\n    runner = unittest.TextTestRunner(stream=sys.stdout, verbosity=2)\n    unittest.main(argv=[\"main\"], testRunner=runner)   # exits with 1 if any test fails\n"},
+            {"id": "doctest", "cat": "testing", "title": "doctest: tests inside docstrings", "level": 1, "icon": "i-flask", "desc": "Examples in docstrings double as tests.", "tags": ["doctest", "docstring"], "needs": [], "featured": false, "stdin": "", "code": "import doctest\n\ndef celsius_to_fahrenheit(c):\n    \"\"\"Convert Celsius to Fahrenheit.\n\n    >>> celsius_to_fahrenheit(0)\n    32.0\n    >>> celsius_to_fahrenheit(100)\n    212.0\n    >>> round(celsius_to_fahrenheit(-40), 1)\n    -40.0\n    \"\"\"\n    return c * 9 / 5 + 32\n\ndef word_count(text):\n    \"\"\"Count words in a string.\n\n    >>> word_count(\"to be or not to be\")\n    6\n    >>> word_count(\"\")\n    0\n    \"\"\"\n    return len(text.split())\n\ndef first_duplicate(items):\n    \"\"\"Return the first repeated item, or None.\n\n    >>> first_duplicate([3, 1, 4, 1, 5])\n    1\n    >>> first_duplicate(\"abc\") is None\n    True\n    \"\"\"\n    seen = set()\n    for item in items:\n        if item in seen:\n            return item\n        seen.add(item)\n\nresults = doctest.testmod(verbose=False)\nprint(results)\nprint(\"All doctests passed!\" if results.failed == 0 else \"Some doctests failed - see above.\")\n"},
+            {"id": "assert-runner", "cat": "testing", "title": "Mini test runner (pytest style)", "level": 2, "icon": "i-flask", "desc": "Plain asserts, a @test decorator and a tiny runner.", "tags": ["assert", "decorator", "pytest-style"], "needs": [], "featured": false, "stdin": "", "code": "import traceback\n\nTESTS = []\n\ndef test(fn):\n    \"\"\"Register a function as a test.\"\"\"\n    TESTS.append(fn)\n    return fn\n\ndef raises(exc_type, fn, *args):\n    try:\n        fn(*args)\n    except exc_type:\n        return True\n    return False\n\n# --- the code being tested ---------------------------------------------\ndef divide(a, b):\n    return a / b\n\ndef factorial(n):\n    if n < 0:\n        raise ValueError(\"negative\")\n    return 1 if n < 2 else n * factorial(n - 1)\n\n# --- the tests (plain asserts, like pytest) ----------------------------\n@test\ndef test_divide():\n    assert divide(10, 4) == 2.5\n\n@test\ndef test_divide_by_zero():\n    assert raises(ZeroDivisionError, divide, 1, 0)\n\n@test\ndef test_factorial_values():\n    assert [factorial(n) for n in range(6)] == [1, 1, 2, 6, 24, 120]\n\n@test\ndef test_factorial_negative():\n    assert raises(ValueError, factorial, -1)\n\n@test\ndef test_string_methods():\n    assert \"python\".upper() == \"PYTHON\"\n    assert \"a,b,c\".split(\",\") == [\"a\", \"b\", \"c\"]\n\n# --- tiny runner ---------------------------------------------------------\npassed = failed = 0\nfor fn in TESTS:\n    try:\n        fn()\n        passed += 1\n        print(f\"PASS  {fn.__name__}\")\n    except AssertionError:\n        failed += 1\n        print(f\"FAIL  {fn.__name__}\")\n        print(\"      \" + traceback.format_exc().strip().splitlines()[-2].strip())\nprint(f\"\\n{passed} passed, {failed} failed\")\nraise SystemExit(1 if failed else 0)\n"},
+            {"id": "timeit", "cat": "testing", "title": "Benchmark with timeit", "level": 2, "icon": "i-flask", "desc": "Compare loops, comprehensions, map and string joins.", "tags": ["timeit", "performance"], "needs": [], "featured": false, "stdin": "", "code": "import timeit\n\ndef with_loop(n=2000):\n    out = []\n    for i in range(n):\n        out.append(i * i)\n    return out\n\ndef with_comprehension(n=2000):\n    return [i * i for i in range(n)]\n\ndef with_map(n=2000):\n    return list(map(lambda i: i * i, range(n)))\n\nassert with_loop() == with_comprehension() == with_map()\n\nresults = {}\nfor fn in (with_loop, with_comprehension, with_map):\n    seconds = min(timeit.repeat(fn, number=100, repeat=5))\n    results[fn.__name__] = seconds / 100 * 1e6\nfastest = min(results.values())\nfor name, us in sorted(results.items(), key=lambda kv: kv[1]):\n    print(f\"{name:<18} {us:8.1f} us/call   x{us / fastest:.2f}\")\n\nprint()\na = timeit.timeit(\"s = ''\\nfor i in range(300): s += str(i)\", number=2000)\nb = timeit.timeit(\"''.join(str(i) for i in range(300))\", number=2000)\nprint(f\"string +=  : {a * 1000:.1f} ms\")\nprint(f\"str.join   : {b * 1000:.1f} ms\")\n"},
+            {"id": "game-of-life", "cat": "games", "title": "Conway's Game of Life", "level": 2, "icon": "i-gamepad", "desc": "A glider walking across a wrap-around grid.", "tags": ["simulation", "sets"], "needs": [], "featured": true, "stdin": "", "code": "ROWS, COLS = 10, 20\n\ndef neighbours(cells, r, c):\n    return sum(((r + dr) % ROWS, (c + dc) % COLS) in cells\n               for dr in (-1, 0, 1) for dc in (-1, 0, 1) if (dr, dc) != (0, 0))\n\ndef step(cells):\n    return {(r, c) for r in range(ROWS) for c in range(COLS)\n            if neighbours(cells, r, c) == 3\n            or ((r, c) in cells and neighbours(cells, r, c) == 2)}\n\ndef show(cells, generation):\n    print(f\"Generation {generation}  ({len(cells)} cells)\")\n    for r in range(ROWS):\n        print(\"\".join(\"#\" if (r, c) in cells else \".\" for c in range(COLS)))\n    print()\n\ncells = {(1, 2), (2, 3), (3, 1), (3, 2), (3, 3)}      # a glider\nfor g in range(6):\n    show(cells, g)\n    cells = step(cells)\n"},
+            {"id": "mandelbrot", "cat": "games", "title": "Mandelbrot in ASCII", "level": 2, "icon": "i-gamepad", "desc": "Complex numbers turned into a text-mode fractal.", "tags": ["complex", "fractal"], "needs": [], "featured": false, "stdin": "", "code": "WIDTH, HEIGHT, MAX_ITER = 64, 24, 40\nCHARS = \" .:-=+*#%@\"\n\nfor row in range(HEIGHT):\n    line = \"\"\n    for col in range(WIDTH):\n        c = complex(-2.2 + 3.2 * col / WIDTH, -1.2 + 2.4 * row / HEIGHT)\n        z, n = 0j, 0\n        while abs(z) <= 2 and n < MAX_ITER:\n            z = z * z + c\n            n += 1\n        line += CHARS[n * (len(CHARS) - 1) // MAX_ITER]\n    print(line)\n"},
+            {"id": "tictactoe", "cat": "games", "title": "Tic-tac-toe (unbeatable AI)", "level": 3, "icon": "i-gamepad", "desc": "Minimax with memoisation plays itself to a draw.", "tags": ["minimax", "recursion", "cache"], "needs": [], "featured": false, "stdin": "", "code": "from functools import lru_cache\n\nLINES = [(0, 1, 2), (3, 4, 5), (6, 7, 8), (0, 3, 6), (1, 4, 7), (2, 5, 8), (0, 4, 8), (2, 4, 6)]\n\ndef winner(board):\n    for a, b, c in LINES:\n        if board[a] != \" \" and board[a] == board[b] == board[c]:\n            return board[a]\n    return None\n\ndef other(player):\n    return \"O\" if player == \"X\" else \"X\"\n\n@lru_cache(maxsize=None)\ndef minimax(board, player):\n    \"\"\"Score for X: +1 X wins, -1 O wins, 0 draw (with best play).\"\"\"\n    w = winner(board)\n    if w:\n        return 1 if w == \"X\" else -1\n    if \" \" not in board:\n        return 0\n    scores = [minimax(board[:i] + player + board[i + 1:], other(player))\n              for i, cell in enumerate(board) if cell == \" \"]\n    return max(scores) if player == \"X\" else min(scores)\n\ndef best_move(board, player):\n    options = [(minimax(board[:i] + player + board[i + 1:], other(player)), i)\n               for i, cell in enumerate(board) if cell == \" \"]\n    return (max if player == \"X\" else min)(options)[1]\n\ndef show(board):\n    for r in range(3):\n        print(\" \" + \" | \".join(board[r * 3:r * 3 + 3]))\n        if r < 2:\n            print(\"---+---+---\")\n    print()\n\nboard, player = \" \" * 9, \"X\"\nwhile winner(board) is None and \" \" in board:\n    move = best_move(board, player)\n    board = board[:move] + player + board[move + 1:]\n    player = other(player)\n\nshow(board)\nprint(\"Result:\", f\"{winner(board)} wins\" if winner(board) else \"draw (perfect play always ties)\")\nprint(\"Positions searched:\", minimax.cache_info().currsize)\n"},
+            {"id": "maze-bfs", "cat": "games", "title": "Maze solver (BFS)", "level": 2, "icon": "i-gamepad", "desc": "Breadth-first search finds the shortest route and draws it.", "tags": ["bfs", "grid", "deque"], "needs": [], "featured": false, "stdin": "", "code": "from collections import deque\n\nMAZE = [\n    \"###########\",\n    \"#S..#.....#\",\n    \"#.#.#.###.#\",\n    \"#.#...#...#\",\n    \"#.#####.#.#\",\n    \"#.......#E#\",\n    \"###########\",\n]\n\ngrid = [list(row) for row in MAZE]\nstart = next((r, c) for r, row in enumerate(grid) for c, ch in enumerate(row) if ch == \"S\")\ngoal = next((r, c) for r, row in enumerate(grid) for c, ch in enumerate(row) if ch == \"E\")\n\nqueue = deque([start])\ncame_from = {start: None}\nwhile queue:\n    r, c = queue.popleft()\n    if (r, c) == goal:\n        break\n    for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):\n        nr, nc = r + dr, c + dc\n        if grid[nr][nc] != \"#\" and (nr, nc) not in came_from:\n            came_from[(nr, nc)] = (r, c)\n            queue.append((nr, nc))\n\nsteps = 0\nnode = came_from.get(goal)\nwhile node and node != start:\n    grid[node[0]][node[1]] = \"*\"\n    node = came_from[node]\n    steps += 1\n\nprint(\"\\n\".join(\"\".join(row) for row in grid))\nprint(\"Path length:\", steps + 1 if goal in came_from else \"no path\")\n"}
+        ];
+        /*TPL-DATA-END*/
+
+        const modKey = isMac ? '⌘' : 'Ctrl';
+        const LEVELS = ['', 'Beginner', 'Intermediate', 'Advanced'];
+        const catById = {}, tplById = {};
+        TPL_CATEGORIES.forEach(c => { catById[c.id] = c; });
+        TEMPLATES.forEach(t => { tplById[t.id] = t; });
+        const isTplMobile = () => window.matchMedia('(max-width: 760px)').matches;
+        const ic = (name, cls) => '<svg class="' + (cls || 'ic') + '" aria-hidden="true"><use href="#' + name + '"/></svg>';
+
+        const tplDlg = $('#tpl');
+        const tplCatsEl = $('#tpl-cats');
+        const tplListEl = $('#tpl-list');
+        const tplPreviewEl = $('#tpl-preview');
+        const tplSearch = $('#tpl-search');
+        const tplCountEl = $('#tpl-count');
+        let tplCat = 'all', tplQuery = '', tplSel = TEMPLATES[0].id, pendingRun = false;
+
+        /* ---- apply a template to the editor ---- */
+        function applyTemplate(t, run) {
+            closeTpl();
+            setEditorValue(t.code);
+            stdinBox.value = t.stdin || '';
+            store.set('stdin', stdinBox.value);
+            updateInputCount();
+            if (isMobileLayout()) setView('code');
+            toast('Loaded: ' + t.title, 'success', t.icon);
+            if (run) runWhenReady();
+        }
+
+        function runWhenReady() {
+            if (btnState === 'ready') { setTimeout(onRunClick, 80); return; }
+            if (btnState === 'failed') { toast('Python is not loaded yet - press Retry first', 'error', 'i-x'); return; }
+            if (btnState === 'running') onRunClick();          // stop the current program, then run the new one
+            pendingRun = true;
+            toast('Will run as soon as Python is ready', 'info', 'i-clock');
+        }
+
+        /* ---- quick-pick strip ---- */
+        const stripItems = $('#strip-items');
+        stripItems.innerHTML = TEMPLATES.filter(t => t.featured).map(t =>
+            '<button class="chip" data-id="' + t.id + '" title="' + esc(t.desc) + '">' + ic(t.icon) + esc(t.title) + '</button>').join('');
+        stripItems.addEventListener('click', (e) => {
+            const b = e.target.closest('.chip');
+            if (b) applyTemplate(tplById[b.dataset.id], false);
+        });
+        $('#strip-n').textContent = String(TEMPLATES.length);
+        $('#strip-all').addEventListener('click', () => openTpl());
+
+        /* ---- filtering ---- */
+        function matchesQuery(t) {
+            if (!tplQuery) return true;
+            const hay = (t.title + ' ' + t.desc + ' ' + t.tags.join(' ') + ' ' + t.needs.join(' ') + ' ' + catById[t.cat].name + ' ' + LEVELS[t.level]).toLowerCase();
+            return tplQuery.split(/\s+/).every(w => hay.includes(w));
+        }
+        const visibleTemplates = () => TEMPLATES.filter(t => (tplCat === 'all' || t.cat === tplCat) && matchesQuery(t));
+
+        tplCatsEl.innerHTML = [{ id: 'all', name: 'All', icon: 'i-layers' }].concat(TPL_CATEGORIES).map(c =>
+            '<button class="cat" data-cat="' + c.id + '" aria-pressed="false">' + ic(c.icon) + esc(c.name) + '<span class="n">0</span></button>').join('');
+
+        function updateCats() {
+            const counts = { all: 0 };
+            TEMPLATES.forEach(t => { if (matchesQuery(t)) { counts.all++; counts[t.cat] = (counts[t.cat] || 0) + 1; } });
+            $$('.cat', tplCatsEl).forEach(b => {
+                const n = counts[b.dataset.cat] || 0;
+                b.setAttribute('aria-pressed', String(b.dataset.cat === tplCat));
+                b.classList.toggle('none', n === 0 && b.dataset.cat !== tplCat);
+                b.lastChild.textContent = String(n);
+            });
+        }
+
+        /* ---- list + preview rendering ---- */
+        function itemHtml(t) {
+            const on = t.id === tplSel;
+            return '<button class="tpl-item" role="option" data-id="' + t.id + '" aria-selected="' + on + '" tabindex="' + (on ? 0 : -1) + '">'
+                + '<span class="tile">' + ic(t.icon) + '</span>'
+                + '<span class="meta"><b>' + esc(t.title) + '</b><small>' + esc(t.desc) + '</small></span>'
+                + '<span class="lvl" data-l="' + t.level + '" title="' + LEVELS[t.level] + '"><i></i><i></i><i></i></span></button>';
+        }
+
+        function previewHtml(t) {
+            const code = t.code.replace(/\n$/, '');
+            const lines = code.split('\n').length;
+            const nums = Array.from({ length: lines }, (_, i) => i + 1).join('\n');
+            const cat = catById[t.cat];
+            return '<div class="pv-head">'
+                + '<button class="tool pv-back" data-act="back">' + ic('i-arrow-left') + 'All templates</button>'
+                + '<div class="pv-top"><span class="tile">' + ic(t.icon) + '</span><div><h3>' + esc(t.title) + '</h3>'
+                + '<div class="pv-badges"><span class="badge">' + ic(cat.icon) + esc(cat.name) + '</span>'
+                + '<span class="badge lv' + t.level + '">' + LEVELS[t.level] + '</span>'
+                + t.needs.map(n => '<span class="badge" title="Downloaded on first run">' + ic('i-package') + esc(n) + '</span>').join('')
+                + '</div></div></div>'
+                + '<p class="pv-desc">' + esc(t.desc) + '</p>'
+                + (t.stdin ? '<div class="pv-input">' + ic('i-input') + '<div>Also fills the Input tab with<code>' + esc(t.stdin) + '</code></div></div>' : '')
+                + '</div>'
+                + '<div class="pv-code"><div class="pv-bar"><span>main.py · ' + lines + ' lines</span>'
+                + '<button class="tool" data-act="copy" title="Copy code">' + ic('i-copy') + 'Copy</button></div>'
+                + '<div class="pv-scroll"><pre class="pv-gutter" aria-hidden="true">' + nums + '</pre>'
+                + '<pre class="pv-src"><code>' + highlight(code) + '</code></pre></div></div>'
+                + '<div class="pv-actions"><span class="hint-text">Replaces the code in main.py</span>'
+                + '<button class="btn-ghost" data-act="use">' + ic('i-code') + 'Load into editor</button>'
+                + '<button class="btn-run" data-act="run">' + ic('i-play', 'ic ic-solid i-play') + '<span>Load &amp; Run</span><kbd class="run-kbd">' + modKey + ' ↵</kbd></button></div>';
+        }
+
+        function renderPreview(t) {
+            tplPreviewEl.innerHTML = t ? previewHtml(t)
+                : '<div class="tpl-empty">' + ic('i-template') + '<span>Select a template to preview its code</span></div>';
+        }
+
+        function renderList() {
+            const items = visibleTemplates();
+            if (items.length && !items.some(t => t.id === tplSel)) tplSel = items[0].id;
+            let h = '', last = '';
+            items.forEach(t => {
+                if (tplCat === 'all' && t.cat !== last) { last = t.cat; h += '<div class="tpl-group" role="presentation">' + esc(catById[t.cat].name) + '</div>'; }
+                h += itemHtml(t);
+            });
+            tplListEl.innerHTML = h || '<div class="tpl-empty">' + ic('i-search') + '<strong>No templates found</strong><span>Try another word, or pick a different category.</span><button class="btn-ghost" data-act="clear">Clear filters</button></div>';
+            tplCountEl.textContent = items.length + (items.length === 1 ? ' template' : ' templates') + (items.length === TEMPLATES.length ? '' : ' of ' + TEMPLATES.length);
+            renderPreview(items.length ? tplById[tplSel] : null);
+        }
+
+        function selectTpl(id, toPreviewStep) {
+            tplSel = id;
+            $$('.tpl-item', tplListEl).forEach(b => {
+                const on = b.dataset.id === id;
+                b.setAttribute('aria-selected', String(on));
+                b.tabIndex = on ? 0 : -1;
+            });
+            renderPreview(tplById[id]);
+            sr.textContent = 'Selected template: ' + tplById[id].title;
+            if (toPreviewStep && isTplMobile()) tplDlg.dataset.step = 'preview';
+        }
+
+        const selectedItem = () => tplListEl.querySelector('.tpl-item[aria-selected="true"]');
+
+        /* ---- open / close ---- */
+        function openTpl(focusSearch) {
+            if (!tplDlg.open) {
+                tplDlg.dataset.step = 'list';
+                tplCat = 'all'; tplQuery = ''; tplSearch.value = '';     // every open starts fresh
+                if (tplDlg.showModal) tplDlg.showModal(); else tplDlg.setAttribute('open', '');
+            }
+            updateCats();
+            renderList();
+            const sel = selectedItem();
+            if (sel) sel.scrollIntoView({ block: 'nearest' });
+            if ((finePointer && !isTplMobile()) || focusSearch) tplSearch.focus();
+            else if (sel) sel.focus({ preventScroll: true });   // showModal() focuses the search box by default; avoid the on-screen keyboard
+        }
+        function closeTpl() { if (tplDlg.open) tplDlg.close(); }
+
+        /* ---- events ---- */
+        tplSearch.addEventListener('input', () => {
+            tplQuery = tplSearch.value.trim().toLowerCase();
+            updateCats(); renderList();
+            tplListEl.scrollTop = 0;
+        });
+
+        tplCatsEl.addEventListener('click', (e) => {
+            const b = e.target.closest('.cat'); if (!b) return;
+            tplCat = b.dataset.cat;
+            updateCats(); renderList();
+            tplListEl.scrollTop = 0;
+            tplDlg.dataset.step = 'list';
+        });
+
+        tplListEl.addEventListener('click', (e) => {
+            const clear = e.target.closest('[data-act="clear"]');
+            if (clear) { tplCat = 'all'; tplQuery = ''; tplSearch.value = ''; updateCats(); renderList(); return; }
+            const b = e.target.closest('.tpl-item');
+            if (b) selectTpl(b.dataset.id, true);
+        });
+        tplListEl.addEventListener('dblclick', (e) => {
+            const b = e.target.closest('.tpl-item');
+            if (b) applyTemplate(tplById[b.dataset.id], false);
+        });
+        tplListEl.addEventListener('keydown', (e) => {
+            const items = $$('.tpl-item', tplListEl);
+            const i = items.indexOf(document.activeElement);
+            if (i < 0) return;
+            let n = -1;
+            if (e.key === 'ArrowDown') n = Math.min(items.length - 1, i + 1);
+            else if (e.key === 'ArrowUp') { if (i === 0) { e.preventDefault(); tplSearch.focus(); return; } n = i - 1; }
+            else if (e.key === 'Home') n = 0;
+            else if (e.key === 'End') n = items.length - 1;
+            else if (e.key === 'Enter' && !(e.ctrlKey || e.metaKey)) { e.preventDefault(); applyTemplate(tplById[items[i].dataset.id], false); return; }
+            else return;
+            e.preventDefault();
+            items[n].focus();
+            selectTpl(items[n].dataset.id);
+        });
+
+        tplPreviewEl.addEventListener('click', async (e) => {
+            const b = e.target.closest('[data-act]'); if (!b) return;
+            const t = tplById[tplSel];
+            const act = b.dataset.act;
+            if (act === 'use') applyTemplate(t, false);
+            else if (act === 'run') applyTemplate(t, true);
+            else if (act === 'back') { tplDlg.dataset.step = 'list'; const s = selectedItem(); if (s) { s.scrollIntoView({ block: 'nearest' }); s.focus(); } }
+            else if (act === 'copy') {
+                if (await copyText(t.code)) { flashDone(b); toast('Template copied', 'success', 'i-copy'); }
+                else toast('Copy failed', 'error', 'i-x');
+            }
+        });
+
+        $('#tpl-random').addEventListener('click', () => {
+            const pool = visibleTemplates();
+            if (!pool.length) return;
+            let t;
+            do { t = pool[Math.floor(Math.random() * pool.length)]; } while (pool.length > 1 && t.id === tplSel);
+            selectTpl(t.id, true);
+            const s = selectedItem(); if (s) s.scrollIntoView({ block: 'nearest' });
+        });
+        $('#tpl-close').addEventListener('click', closeTpl);
+        tplDlg.addEventListener('click', (e) => { if (e.target === tplDlg) closeTpl(); });
+
+        tplDlg.addEventListener('keydown', (e) => {
+            const mod = e.ctrlKey || e.metaKey;
+            if (mod && e.key === 'Enter') {
+                e.preventDefault(); e.stopPropagation();
+                if (tplById[tplSel]) applyTemplate(tplById[tplSel], true);
+                return;
+            }
+            if (mod && (e.key === 'k' || e.key === 'K')) { e.preventDefault(); e.stopPropagation(); tplSearch.focus(); tplSearch.select(); return; }
+            const inSearch = document.activeElement === tplSearch;
+            if (e.key === '/' && !inSearch) { e.preventDefault(); tplSearch.focus(); return; }
+            if (inSearch && e.key === 'Escape' && tplSearch.value) {
+                e.preventDefault();
+                tplSearch.value = ''; tplQuery = ''; updateCats(); renderList();
+                return;
+            }
+            if (inSearch && (e.key === 'ArrowDown' || e.key === 'Enter')) {
+                const s = selectedItem();
+                if (s) { e.preventDefault(); s.focus(); s.scrollIntoView({ block: 'nearest' }); }
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && (e.key === 'k' || e.key === 'K')) {
+                if (about.open) return;
+                e.preventDefault();
+                if (tplDlg.open) tplSearch.focus(); else openTpl(true);
+            }
+        });
+
+
+        /* =================================================================
+           OUTPUT TABS + MOBILE VIEW SWITCH
+           ================================================================= */
+        const tabsEl = $('#out-tabs');
+        const tabBtns = $$('.tab', tabsEl);
+        const tabInk = $('#tab-ink');
+        const panes = { console: $('#pane-console'), input: $('#pane-input'), plots: $('#pane-plots') };
+        const stdinBox = $('#stdin');
+        let activeTab = 'console';
+
+        function moveInk() {
+            const b = tabBtns.find(t => t.dataset.tab === activeTab);
+            if (!b || !b.offsetWidth) return;
+            tabInk.style.width = b.offsetWidth + 'px';
+            tabInk.style.transform = 'translateX(' + b.offsetLeft + 'px)';
+        }
+
+        function selectTab(name, focusTab) {
+            activeTab = name;
+            tabBtns.forEach(b => {
+                const on = b.dataset.tab === name;
+                b.setAttribute('aria-selected', String(on));
+                b.tabIndex = on ? 0 : -1;
+                if (on && focusTab) b.focus();
+            });
+            Object.keys(panes).forEach(k => { panes[k].hidden = k !== name; });
+            $('#btn-out-copy').style.display = name === 'plots' ? 'none' : '';
+            moveInk();
+        }
+        tabBtns.forEach(b => b.addEventListener('click', () => selectTab(b.dataset.tab)));
+        tabsEl.addEventListener('keydown', (e) => {
+            const i = tabBtns.findIndex(t => t.dataset.tab === activeTab);
+            let n = -1;
+            if (e.key === 'ArrowRight') n = (i + 1) % tabBtns.length;
+            else if (e.key === 'ArrowLeft') n = (i - 1 + tabBtns.length) % tabBtns.length;
+            else if (e.key === 'Home') n = 0;
+            else if (e.key === 'End') n = tabBtns.length - 1;
+            if (n >= 0) { e.preventDefault(); selectTab(tabBtns[n].dataset.tab, true); }
+        });
+        window.addEventListener('resize', moveInk);
+
+        const workspace = $('#workspace');
+        const viewBtns = $$('[data-view-btn]');
+        function setView(v) {
+            workspace.dataset.view = v;
+            viewBtns.forEach(b => b.setAttribute('aria-selected', String(b.dataset.viewBtn === v)));
+            if (v === 'output') requestAnimationFrame(moveInk);
+        }
+        viewBtns.forEach(b => b.addEventListener('click', () => setView(b.dataset.viewBtn)));
+
+        /* ---- Input tab ---- */
+        const countInput = $('#count-input');
+        function inputLineCount() {
+            const t = stdinBox.value.replace(/\r\n?/g, '\n');
+            if (!t) return 0;
+            const lines = t.split('\n');
+            if (lines[lines.length - 1] === '') lines.pop();
+            return lines.length;
+        }
+        function updateInputCount() {
+            const n = inputLineCount();
+            countInput.hidden = n === 0;
+            countInput.textContent = String(n);
+            moveInk();
+        }
+        stdinBox.value = store.get('stdin', '') || '';
+        stdinBox.addEventListener('input', () => { store.set('stdin', stdinBox.value); updateInputCount(); });
+        stdinBox.addEventListener('keydown', (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') { e.preventDefault(); onRunClick(); } });
+
+        /* =================================================================
+           CONSOLE (typewriter)
+           ================================================================= */
+        const consoleBox = $('#console');
+        const consolePane = panes.console;
+        const cursorEl = document.createElement('span');
+        cursorEl.className = 'cursor';
+        cursorEl.textContent = '_';
+        consoleBox.appendChild(cursorEl);
+
+        let queue = [], backlog = 0, pumping = false, typed = 0, lastSpan = null, lastStream = null;
+
+        function appendText(stream, text) {
+            if (!lastSpan || lastStream !== stream) {
+                lastSpan = document.createElement('span');
+                lastSpan.className = 'out-' + stream;
+                consoleBox.insertBefore(lastSpan, cursorEl);
+                lastStream = stream;
+            }
+            lastSpan.textContent += text;
+            consolePane.classList.remove('is-empty');
+            consoleBox.scrollTop = consoleBox.scrollHeight;
+        }
+
+        function pump() {
+            pumping = true;
+            const step = () => {
+                const item = queue[0];
+                if (!item) { pumping = false; return; }
+                const n = reduceMotion ? item.text.length : Math.max(1, Math.ceil(backlog / 45));
+                const piece = item.text.slice(0, n);
+                item.text = item.text.slice(n);
+                backlog -= piece.length;
+                if (!item.text) queue.shift();
+                appendText(item.stream, piece);
+                if (n <= 2 && piece.trim() !== '' && (++typed % 3 === 0)) keyTick();
+                setTimeout(step, n > 6 ? 4 : 14);
+            };
+            step();
+        }
+
+        function enqueue(stream, text) {
+            if (!text) return;
+            queue.push({ stream: stream, text: text });
+            backlog += text.length;
+            if (!pumping) pump();
+        }
+
+        function clearConsole() {
+            queue = []; backlog = 0; lastSpan = null; lastStream = null;
+            consoleBox.textContent = '';
+            consoleBox.appendChild(cursorEl);
+            consolePane.classList.add('is-empty');
+        }
+
+        function consoleText() { return $$('span[class^="out-"]', consoleBox).map(s => s.textContent).join(''); }
+
+        /* ---- Plots ---- */
+        const plotsGrid = $('#plots');
+        const countPlots = $('#count-plots');
+        function clearPlots() {
+            plotsGrid.innerHTML = '';
+            panes.plots.classList.add('is-empty');
+            countPlots.hidden = true;
+            moveInk();
+        }
+        function renderPlots(figs) {
+            plotsGrid.innerHTML = '';
+            figs.forEach((b64, i) => {
+                const fig = document.createElement('figure');
+                fig.className = 'plot';
+                const img = new Image();
+                img.alt = 'Figure ' + (i + 1);
+                img.src = 'data:image/png;base64,' + b64;
+                const cap = document.createElement('figcaption');
+                cap.innerHTML = '<span>Figure ' + (i + 1) + '</span><button class="tool" title="Download PNG"><svg class="ic"><use href="#i-download"/></svg>PNG</button>';
+                cap.querySelector('button').addEventListener('click', () => {
+                    const a = document.createElement('a');
+                    a.href = img.src; a.download = 'figure-' + (i + 1) + '.png';
+                    document.body.appendChild(a); a.click(); a.remove();
+                });
+                fig.append(img, cap);
+                plotsGrid.appendChild(fig);
+            });
+            panes.plots.classList.toggle('is-empty', figs.length === 0);
+            countPlots.hidden = figs.length === 0;
+            countPlots.textContent = String(figs.length);
+            moveInk();
+        }
+
+        /* ---- Console actions ---- */
+        $('#btn-out-copy').addEventListener('click', async (e) => {
+            const text = activeTab === 'input' ? stdinBox.value : consoleText();
+            if (!text.trim()) { toast('Nothing to copy yet', 'info'); return; }
+            const ok = await copyText(text);
+            if (ok) { flashDone(e.currentTarget); toast('Copied', 'success', 'i-copy'); } else toast('Copy failed', 'error', 'i-x');
+        });
+        $('#btn-out-clear').addEventListener('click', () => {
+            if (activeTab === 'input') { stdinBox.value = ''; store.set('stdin', ''); updateInputCount(); }
+            else if (activeTab === 'plots') clearPlots();
+            else { clearConsole(); setExit('idle', 'Idle'); }
+        });
+
+        /* ---- Exit badge ---- */
+        const exitBadge = $('#exit-badge');
+        function setExit(kind, text, spin) {
+            exitBadge.className = 'badge' + (kind === 'ok' ? ' ok' : kind === 'err' ? ' err' : kind === 'run' ? ' run' : '');
+            exitBadge.innerHTML = (spin ? '<span class="spinner"></span>' : '') + '<span></span>';
+            exitBadge.lastChild.textContent = text;
+        }
+
+        /* =================================================================
+           PYTHON RUNTIME (Web Worker running Pyodide)
+           ================================================================= */
+        const workerSrc = $('#worker-src').textContent;
+        const harness = $('#py-harness').textContent;
+        const workerUrl = URL.createObjectURL(new Blob([workerSrc], { type: 'text/javascript' }));
+
+        const PREP_LIMIT_MS = 180000;
+        const timeoutSel = $('#timeout');
+        timeoutSel.value = store.get('timeout', '30');
+        if (timeoutSel.value !== store.get('timeout', '30')) timeoutSel.value = '30';
+        timeoutSel.addEventListener('change', () => store.set('timeout', timeoutSel.value));
+        const runLimitMs = () => (parseInt(timeoutSel.value, 10) || 30) * 1000;
+
+        const pill = $('#pill');
+        const pillText = $('#pill-text');
+        const sr = $('#sr');
+        const LABELS = { loading: 'Loading…', ready: 'Run', running: 'Stop', failed: 'Retry' };
+
+        let worker = null, btnState = 'loading', running = false, gotOutput = false, sawEOF = false;
+        let runTimer = null, ticker = null, runT0 = 0, pyVersion = '';
+
+        function setState(state) {
+            btnState = state;
+            $$('.js-run').forEach(b => {
+                b.dataset.state = state;
+                b.disabled = state === 'loading';
+                $('.run-label', b).textContent = LABELS[state];
+                b.setAttribute('aria-label', { loading: 'Loading Python', ready: 'Run code', running: 'Stop execution', failed: 'Retry loading Python' }[state]);
+            });
+            pill.dataset.state = state;
+            document.body.dataset.runtime = state;
+            if (state === 'ready') pillText.textContent = 'Python ' + pyVersion + ' · ready';
+            else if (state === 'running') pillText.textContent = 'Running…';
+            else if (state === 'failed') pillText.textContent = 'Runtime failed to load';
+            else if (!pillText.textContent || /ready|Running|failed/.test(pillText.textContent)) pillText.textContent = 'Loading Python…';
+            pill.title = pillText.textContent;
+        }
+
+        function stopTicker() { clearInterval(ticker); ticker = null; }
+        function startTicker() {
+            stopTicker();
+            ticker = setInterval(() => {
+                const s = ((performance.now() - runT0) / 1000).toFixed(1);
+                setExit('run', 'Running ' + s + 's', true);
+            }, 100);
+        }
+
+        function armTimer(ms) {
+            clearTimeout(runTimer);
+            runTimer = setTimeout(() => {
+                killAndRestart('--- Timed out after ' + (runLimitMs() / 1000) + 's: program stopped ---', 'Timed out');
+            }, ms);
+        }
+
+        function startWorker() {
+            if (worker) worker.terminate();
+            pillText.textContent = 'Loading Python…';
+            setState('loading');
+            worker = new Worker(workerUrl);
+            worker.onmessage = onWorkerMessage;
+            worker.onerror = (e) => {
+                if (running) killAndRestart('--- The Python runtime crashed ---', 'Crashed');
+                else initFailed(e && e.message ? e.message : 'worker error');
+            };
+            worker.postMessage({ type: 'init', harness: harness });
+        }
+
+        function killAndRestart(reason, badge) {
+            clearTimeout(runTimer); stopTicker();
+            running = false;
+            enqueue('err', '\n' + reason + '\n');
+            setExit('err', badge || 'Stopped');
+            chime(false);
+            startWorker();
+        }
+
+        function initFailed(message) {
+            pendingRun = false;
+            setState('failed');
+            setExit('err', 'Offline');
+            enqueue('err', '--- Could not load Python runtime ---\n' + message + '\nCheck your internet connection, then press "Retry".\n');
+        }
+
+        function onWorkerMessage(e) {
+            const m = e.data;
+            switch (m.type) {
+                case 'status':
+                    if (running) enqueue('meta', '> ' + m.text + '\n');
+                    else { pillText.textContent = m.text.slice(0, 48); pill.title = m.text; }
+                    break;
+                case 'ready':
+                    pyVersion = m.python;
+                    setState('ready');
+                    $('#sb-py').textContent = 'Python ' + m.python;
+                    $('#about-runtime').textContent = 'Python ' + m.python + ' · Pyodide 0.26.4';
+                    enqueue('meta', '> Python ' + m.python + ' ready. Press Run (or ' + (isMac ? '⌘' : 'Ctrl') + ' + Enter).\n');
+                    if (pendingRun) { pendingRun = false; setTimeout(onRunClick, 250); }
+                    break;
+                case 'initError':
+                    initFailed(m.message);
+                    break;
+                case 'started':
+                    armTimer(runLimitMs());
+                    break;
+                case 'chunk':
+                    gotOutput = true;
+                    if (m.stream === 'err' && m.text.includes('EOFError')) sawEOF = true;
+                    enqueue(m.stream, m.text);
+                    break;
+                case 'overflow':
+                    killAndRestart('--- Output limit reached: program stopped ---', 'Output limit');
+                    break;
+                case 'figs':
+                    renderPlots(m.figs || []);
+                    break;
+                case 'done': {
+                    clearTimeout(runTimer); stopTicker();
+                    running = false;
+                    const sec = (m.ms / 1000).toFixed(2);
+                    if (!gotOutput && m.code === 0 && !panes.plots.querySelector('.plot')) enqueue('meta', 'Execution successful. No output.\n');
+                    if (sawEOF && !stdinBox.value.trim()) enqueue('meta', '\nTip: this program reads input. Add the values in the Input tab, one line per input() call.\n');
+                    enqueue('meta', '\n--- Process finished with exit code ' + m.code + ' (' + sec + 's) ---\n');
+                    setExit(m.code === 0 ? 'ok' : 'err', 'Exit ' + m.code + ' · ' + sec + 's');
+                    sr.textContent = m.code === 0 ? 'Run finished successfully in ' + sec + ' seconds.' : 'Run finished with exit code ' + m.code + '.';
+                    chime(m.code === 0);
+                    setState('ready');
+                    const nPlots = plotsGrid.children.length;
+                    if (nPlots && m.code === 0) { selectTab('plots'); toast(nPlots + (nPlots === 1 ? ' plot' : ' plots') + ' ready', 'success', 'i-chart'); }
+                    break;
+                }
+            }
+        }
+
+        function onRunClick() {
+            ensureAudio();
+            if (btnState === 'failed') { clearConsole(); enqueue('meta', '> Retrying...\n'); setExit('idle', 'Idle'); startWorker(); return; }
+            if (btnState === 'running') { killAndRestart('--- Execution stopped ---', 'Stopped'); return; }
+            if (btnState !== 'ready') return;
+
+            clearConsole(); clearPlots();
+            selectTab('console');
+            if (isMobileLayout()) setView('output');
+            gotOutput = false; sawEOF = false; running = true;
+            enqueue('meta', '> Running...\n');
+            setState('running');
+            runT0 = performance.now(); startTicker();
+            armTimer(PREP_LIMIT_MS);
+            worker.postMessage({ type: 'run', code: editor.value, stdin: stdinBox.value });
+        }
+
+        $$('.js-run').forEach(b => {
+            b.addEventListener('click', (e) => {
+                if (b.disabled) return;
+                const r = b.getBoundingClientRect();
+                const size = Math.max(r.width, r.height);
+                const rp = document.createElement('span');
+                rp.className = 'ripple';
+                rp.style.cssText = 'width:' + size + 'px;height:' + size + 'px;left:' + (e.clientX - r.left - size / 2) + 'px;top:' + (e.clientY - r.top - size / 2) + 'px';
+                b.appendChild(rp);
+                setTimeout(() => rp.remove(), 700);
+                onRunClick();
+            });
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && e.target !== editor && e.target !== stdinBox) { e.preventDefault(); onRunClick(); }
+            if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S') && e.target !== editor) { e.preventDefault(); downloadCode(); }
+        });
+
+        /* =================================================================
+           ABOUT DIALOG
+           ================================================================= */
+        const about = $('#about');
+        $('#btn-about').addEventListener('click', () => { if (about.showModal) about.showModal(); else about.setAttribute('open', ''); });
+        $('#about-close').addEventListener('click', () => about.close());
+        about.addEventListener('click', (e) => { if (e.target === about) about.close(); });
+
+        /* =================================================================
+           BOOT
+           ================================================================= */
+        editor.value = store.get('code', null) || DEFAULT_CODE;
+        applyFont();
+        fullRender();
+        updateInputCount();
+        selectTab('console');
+        setExit('idle', 'Idle');
+        enqueue('meta', '> Loading Python runtime...\n');
+        startWorker();
+
+        // Splash: wait for fonts and a short minimum so the intro animation can play
+        const splash = $('#splash');
+        let revealed = false;
+        function reveal() {
+            if (revealed) return; revealed = true;
+            splash.classList.add('hide');
+            document.body.classList.add('ready');
+            applyFont(); moveInk();
+            setTimeout(() => splash.remove(), 1000);
+        }
+        const minDelay = new Promise(r => setTimeout(r, 1500));
+        const fontsReady = (document.fonts && document.fonts.ready)
+            ? Promise.race([document.fonts.ready, new Promise(r => setTimeout(r, 2500))])
+            : Promise.resolve();
+        Promise.all([minDelay, fontsReady]).then(reveal);
+        setTimeout(reveal, 4200);
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { applyFont(); moveInk(); });
+    })();
+    </script>
+</body>
+
+</html>
